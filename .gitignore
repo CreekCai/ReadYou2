@@ -1,0 +1,23 @@
+# Gradle / Android build output
+.gradle/
+.kotlin/
+build/
+app/build/
+
+# Local Android / IDE files
+local.properties
+.idea/
+*.iml
+
+# Signing material must stay private.
+signature/*.keystore
+signature/*.jks
+signature/keystore.properties
+signature/keystore_release.properties
+
+# Local verification screenshots
+read_you_*.png
+
+# OS files
+.DS_Store
+Thumbs.db
