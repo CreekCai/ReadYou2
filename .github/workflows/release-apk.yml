@@ -55,7 +55,9 @@ jobs:
           EOF
 
       - name: Build APK
-        run: ./gradlew :app:assembleGithubRelease --console=plain --no-daemon "-Dorg.gradle.workers.max=2" "-Dorg.gradle.vfs.watch=false"
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleGithubRelease --console=plain --no-daemon "-Dorg.gradle.workers.max=2" "-Dorg.gradle.vfs.watch=false"
 
       - name: Prepare release files
         id: release_files
