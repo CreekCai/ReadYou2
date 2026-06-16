@@ -79,6 +79,7 @@ data class Settings(
     val openLink: OpenLinkPreference = OpenLinkPreference.default,
     val openLinkSpecificBrowser: OpenLinkSpecificBrowserPreference = OpenLinkSpecificBrowserPreference.default,
     val sharedContent: SharedContentPreference = SharedContentPreference.default,
+    val typeChoWorkerUrl: String = TypeChoWorkerUrlPreference.default,
     val typeChoEndpoint: String = TypeChoEndpointPreference.default,
     val typeChoHomeUrl: String = TypeChoHomeUrlPreference.default,
     val typeChoUsername: String = TypeChoUsernamePreference.default,
@@ -98,6 +99,8 @@ data class Settings(
     val geminiInsightPrompt: String = GeminiInsightPromptPreference.default,
     val codexApiKey: String = CodexApiKeyPreference.default,
     val codexModel: String = CodexModelPreference.default,
+    val codexTranslationModel: String = CodexTranslationModelPreference.default,
+    val codexInsightModel: String = CodexInsightModelPreference.default,
     val openAiBaseUrl: String = OpenAiBaseUrlPreference.default,
 
     // TTS

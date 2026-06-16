@@ -334,7 +334,10 @@
     <string name="share_settings">Share settings</string>
     <string name="share_settings_desc">Share content and TypeCho publishing</string>
     <string name="share_action">Share action</string>
+    <string name="typecho_worker_url">Worker proxy URL</string>
+    <string name="typecho_worker_url_hint">Cloudflare Worker or compatible proxy endpoint</string>
     <string name="typecho_endpoint">TypeCho XML-RPC endpoint</string>
+    <string name="typecho_endpoint_hint">Exact TypeCho RPC URL, passed to X-Target-URL without changes</string>
     <string name="typecho_home_url">TypeCho site URL</string>
     <string name="typecho_username">TypeCho username</string>
     <string name="typecho_password">TypeCho password</string>
@@ -404,6 +407,9 @@
     <string name="ai_settings_page_desc">Configure AI for summarization, translation and insight features.</string>
     <string name="ai_provider">Provider</string>
     <string name="openai_model">OpenAI model</string>
+    <string name="openai_summarization_model">OpenAI summarization model</string>
+    <string name="openai_translation_model">OpenAI translation model</string>
+    <string name="openai_insight_model">OpenAI insight model</string>
     <string name="openai_base_url">OpenAI Base URL</string>
     <string name="reset">Reset</string>
     <string name="summarization_model">Summarization model</string>

@@ -34,11 +34,13 @@ import me.ash.reader.infrastructure.preference.LocalTypeChoEndpoint
 import me.ash.reader.infrastructure.preference.LocalTypeChoHomeUrl
 import me.ash.reader.infrastructure.preference.LocalTypeChoPassword
 import me.ash.reader.infrastructure.preference.LocalTypeChoUsername
+import me.ash.reader.infrastructure.preference.LocalTypeChoWorkerUrl
 import me.ash.reader.infrastructure.preference.SharedContentPreference
 import me.ash.reader.infrastructure.preference.TypeChoEndpointPreference
 import me.ash.reader.infrastructure.preference.TypeChoHomeUrlPreference
 import me.ash.reader.infrastructure.preference.TypeChoPasswordPreference
 import me.ash.reader.infrastructure.preference.TypeChoUsernamePreference
+import me.ash.reader.infrastructure.preference.TypeChoWorkerUrlPreference
 import me.ash.reader.ui.component.base.FeedbackIconButton
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,17 +51,22 @@ fun ShareSettingsPage(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val sharedContent = LocalSharedContent.current
+    val typeChoWorkerUrl = LocalTypeChoWorkerUrl.current
     val typeChoEndpoint = LocalTypeChoEndpoint.current
     val typeChoHomeUrl = LocalTypeChoHomeUrl.current
     val typeChoUsername = LocalTypeChoUsername.current
     val typeChoPassword = LocalTypeChoPassword.current
 
     var expandedMode by remember { mutableStateOf(false) }
+    var workerUrlText by remember(typeChoWorkerUrl) { mutableStateOf(typeChoWorkerUrl) }
     var endpointText by remember(typeChoEndpoint) { mutableStateOf(typeChoEndpoint) }
     var homeUrlText by remember(typeChoHomeUrl) { mutableStateOf(typeChoHomeUrl) }
     var usernameText by remember(typeChoUsername) { mutableStateOf(typeChoUsername) }
     var passwordText by remember(typeChoPassword) { mutableStateOf(typeChoPassword) }
 
+    LaunchedEffect(typeChoWorkerUrl) {
+        if (workerUrlText != typeChoWorkerUrl) workerUrlText = typeChoWorkerUrl
+    }
     LaunchedEffect(typeChoEndpoint) {
         if (endpointText != typeChoEndpoint) endpointText = typeChoEndpoint
     }
@@ -124,13 +131,24 @@ fun ShareSettingsPage(
                     if (sharedContent == SharedContentPreference.TypeCho) {
                         Spacer(modifier = Modifier.height(16.dp))
                         OutlinedTextField(
+                            value = workerUrlText,
+                            onValueChange = {
+                                workerUrlText = it
+                                TypeChoWorkerUrlPreference.put(context, coroutineScope, it)
+                            },
+                            label = { Text(stringResource(R.string.typecho_worker_url)) },
+                            supportingText = { Text(stringResource(R.string.typecho_worker_url_hint)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
                             value = endpointText,
                             onValueChange = {
                                 endpointText = it
                                 TypeChoEndpointPreference.put(context, coroutineScope, it)
                             },
                             label = { Text(stringResource(R.string.typecho_endpoint)) },
-                            supportingText = { Text("https://example.com/action/xmlrpc") },
+                            supportingText = { Text(stringResource(R.string.typecho_endpoint_hint)) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                         Spacer(modifier = Modifier.height(16.dp))

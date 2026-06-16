@@ -355,6 +355,9 @@
     <string name="ai_settings_page_desc">配置 AI 摘要、翻译和洞察功能。</string>
     <string name="ai_provider">服务商</string>
     <string name="openai_model">OpenAI 模型</string>
+    <string name="openai_summarization_model">OpenAI 摘要模型</string>
+    <string name="openai_translation_model">OpenAI 翻译模型</string>
+    <string name="openai_insight_model">OpenAI 洞察模型</string>
     <string name="openai_base_url">OpenAI Base URL</string>
     <string name="reset">重置</string>
     <string name="summarization_model">摘要模型</string>
@@ -368,7 +371,10 @@
     <string name="share_settings">分享设置</string>
     <string name="share_settings_desc">配置分享内容和 TypeCho 发布</string>
     <string name="share_action">分享动作</string>
+    <string name="typecho_worker_url">Worker 代理地址</string>
+    <string name="typecho_worker_url_hint">Cloudflare Worker 或兼容代理接口地址</string>
     <string name="typecho_endpoint">TypeCho XML-RPC 地址</string>
+    <string name="typecho_endpoint_hint">准确的 TypeCho RPC 地址，会原样传给 X-Target-URL</string>
     <string name="typecho_home_url">TypeCho 网站主页地址</string>
     <string name="typecho_username">TypeCho 用户名</string>
     <string name="typecho_password">TypeCho 密码</string>

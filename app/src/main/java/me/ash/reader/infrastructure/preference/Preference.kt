@@ -86,6 +86,7 @@ fun Preferences.toSettings(): Settings {
         openLink = OpenLinkPreference.fromPreferences(this),
         openLinkSpecificBrowser = OpenLinkSpecificBrowserPreference.fromPreferences(this),
         sharedContent = SharedContentPreference.fromPreferences(this),
+        typeChoWorkerUrl = TypeChoWorkerUrlPreference.fromPreferences(this),
         typeChoEndpoint = TypeChoEndpointPreference.fromPreferences(this),
         typeChoHomeUrl = TypeChoHomeUrlPreference.fromPreferences(this),
         typeChoUsername = TypeChoUsernamePreference.fromPreferences(this),
@@ -105,6 +106,8 @@ fun Preferences.toSettings(): Settings {
         geminiInsightPrompt = GeminiInsightPromptPreference.fromPreferences(this),
         codexApiKey = CodexApiKeyPreference.fromPreferences(this),
         codexModel = CodexModelPreference.fromPreferences(this),
+        codexTranslationModel = CodexTranslationModelPreference.fromPreferences(this),
+        codexInsightModel = CodexInsightModelPreference.fromPreferences(this),
         openAiBaseUrl = OpenAiBaseUrlPreference.fromPreferences(this),
 
         // TTS

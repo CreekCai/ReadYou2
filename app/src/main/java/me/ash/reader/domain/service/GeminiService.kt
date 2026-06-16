@@ -55,7 +55,7 @@ class GeminiService @Inject constructor(
             when (settingsProvider.settings.aiProvider) {
                 AiProviderPreference.OpenAI ->
                     generateCodexContent(
-                        modelName = settingsProvider.settings.codexModel,
+                        modelName = settingsProvider.settings.codexTranslationModel,
                         apiKey = settingsProvider.settings.codexApiKey,
                         baseUrl = settingsProvider.settings.openAiBaseUrl,
                         prompt = settingsProvider.settings.geminiTranslationPrompt,
@@ -80,7 +80,7 @@ class GeminiService @Inject constructor(
             when (settingsProvider.settings.aiProvider) {
                 AiProviderPreference.OpenAI ->
                     generateCodexContent(
-                        modelName = settingsProvider.settings.codexModel,
+                        modelName = settingsProvider.settings.codexInsightModel,
                         apiKey = settingsProvider.settings.codexApiKey,
                         baseUrl = settingsProvider.settings.openAiBaseUrl,
                         prompt = settingsProvider.settings.geminiInsightPrompt,

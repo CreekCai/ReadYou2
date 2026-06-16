@@ -137,6 +137,7 @@ class SettingsProvider @Inject constructor(
             LocalOpenLink provides settings.openLink,
             LocalOpenLinkSpecificBrowser provides settings.openLinkSpecificBrowser,
             LocalSharedContent provides settings.sharedContent,
+            LocalTypeChoWorkerUrl provides settings.typeChoWorkerUrl,
             LocalTypeChoEndpoint provides settings.typeChoEndpoint,
             LocalTypeChoHomeUrl provides settings.typeChoHomeUrl,
             LocalTypeChoUsername provides settings.typeChoUsername,
@@ -156,6 +157,8 @@ class SettingsProvider @Inject constructor(
             LocalGeminiInsightPrompt provides settings.geminiInsightPrompt,
             LocalCodexApiKey provides settings.codexApiKey,
             LocalCodexModel provides settings.codexModel,
+            LocalCodexTranslationModel provides settings.codexTranslationModel,
+            LocalCodexInsightModel provides settings.codexInsightModel,
             LocalOpenAiBaseUrl provides settings.openAiBaseUrl,
 
             // TTS

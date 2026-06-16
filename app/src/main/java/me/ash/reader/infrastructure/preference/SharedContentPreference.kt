@@ -22,6 +22,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
 
 val LocalSharedContent = compositionLocalOf<SharedContentPreference> { SharedContentPreference.default }
 
@@ -52,6 +53,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         title: String?,
         link: String?,
         content: String? = null,
+        typeChoWorkerUrl: String = "",
         typeChoEndpoint: String = "",
         typeChoHomeUrl: String = "",
         typeChoUsername: String = "",
@@ -63,6 +65,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
             TypeCho ->
                 uploadToTypeCho(
                     context = context,
+                    workerUrl = typeChoWorkerUrl,
                     endpoint = typeChoEndpoint,
                     homeUrl = typeChoHomeUrl,
                     username = typeChoUsername,
@@ -83,6 +86,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
 
     private fun uploadToTypeCho(
         context: Context,
+        workerUrl: String,
         endpoint: String,
         homeUrl: String,
         username: String,
@@ -91,7 +95,13 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         link: String,
         content: String,
     ) {
-        if (endpoint.isBlank() || homeUrl.isBlank() || username.isBlank() || password.isBlank()) {
+        if (
+            workerUrl.isBlank() ||
+                endpoint.isBlank() ||
+                homeUrl.isBlank() ||
+                username.isBlank() ||
+                password.isBlank()
+        ) {
             toast(context, context.getString(R.string.typecho_missing_config))
             return
         }
@@ -113,14 +123,22 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                     )
                 val request =
                     Request.Builder()
-                        .url(endpoint)
+                        .url(workerUrl.trim())
+                        .header("X-Target-URL", endpoint.trim())
+                        .header("User-Agent", "ReadYou TypeCho Publisher")
                         .post(body.toRequestBody("text/xml; charset=utf-8".toMediaType()))
                         .build()
-                OkHttpClient().newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        error("HTTP ${response.code}")
-                    }
+                OkHttpClient.Builder()
+                    .connectTimeout(15, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .build()
+                    .newCall(request)
+                    .execute()
+                    .use { response ->
                     val responseText = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) {
+                        error("HTTP ${response.code}${responseText.shortErrorSuffix()}")
+                    }
                     if (responseText.contains("<fault>", ignoreCase = true)) {
                         error(responseText.extractXmlRpcFault().ifBlank { "XML-RPC fault" })
                     }
@@ -177,11 +195,21 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         """.trimIndent()
 
     private fun String.xmlEscape(): String =
-        replace("&", "&amp;")
+        filter { it == '\t' || it == '\n' || it == '\r' || it >= ' ' }
+            .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("\"", "&quot;")
             .replace("'", "&apos;")
+
+    private fun String.shortErrorSuffix(): String {
+        val text =
+            replace(Regex("<[^>]+>"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+                .take(160)
+        return if (text.isBlank()) "" else ": $text"
+    }
 
     private fun String.extractXmlRpcValue(): String =
         Regex("<(?:string|int|i4)>(.*?)</(?:string|int|i4)>", RegexOption.DOT_MATCHES_ALL)

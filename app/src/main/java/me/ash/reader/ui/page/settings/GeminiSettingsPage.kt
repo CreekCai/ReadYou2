@@ -1,6 +1,5 @@
 package me.ash.reader.ui.page.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,8 +14,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -24,7 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,7 +29,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
@@ -41,7 +36,9 @@ import androidx.compose.ui.unit.dp
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.AiProviderPreference
 import me.ash.reader.infrastructure.preference.CodexApiKeyPreference
+import me.ash.reader.infrastructure.preference.CodexInsightModelPreference
 import me.ash.reader.infrastructure.preference.CodexModelPreference
+import me.ash.reader.infrastructure.preference.CodexTranslationModelPreference
 import me.ash.reader.infrastructure.preference.GeminiApiKeyPreference
 import me.ash.reader.infrastructure.preference.GeminiModelPreference
 import me.ash.reader.infrastructure.preference.GeminiInsightModelPreference
@@ -51,7 +48,9 @@ import me.ash.reader.infrastructure.preference.GeminiTranslationPromptPreference
 import me.ash.reader.infrastructure.preference.GeminiInsightPromptPreference
 import me.ash.reader.infrastructure.preference.LocalAiProvider
 import me.ash.reader.infrastructure.preference.LocalCodexApiKey
+import me.ash.reader.infrastructure.preference.LocalCodexInsightModel
 import me.ash.reader.infrastructure.preference.LocalCodexModel
+import me.ash.reader.infrastructure.preference.LocalCodexTranslationModel
 import me.ash.reader.infrastructure.preference.LocalGeminiApiKey
 import me.ash.reader.infrastructure.preference.LocalGeminiModel
 import me.ash.reader.infrastructure.preference.LocalGeminiInsightModel
@@ -75,6 +74,8 @@ fun GeminiSettingsPage(
     val apiKey = LocalGeminiApiKey.current
     val codexApiKey = LocalCodexApiKey.current
     val codexModel = LocalCodexModel.current
+    val codexTranslationModel = LocalCodexTranslationModel.current
+    val codexInsightModel = LocalCodexInsightModel.current
     val openAiBaseUrl = LocalOpenAiBaseUrl.current
     val model = LocalGeminiModel.current
     val translationModel = LocalGeminiTranslationModel.current
@@ -84,12 +85,15 @@ fun GeminiSettingsPage(
     val insightPrompt = LocalGeminiInsightPrompt.current
 
     var expandedProvider by remember { mutableStateOf(false) }
-    var expandedModel by remember { mutableStateOf(false) }
-    var expandedTranslationModel by remember { mutableStateOf(false) }
-    var expandedInsightModel by remember { mutableStateOf(false) }
     
     var apiKeyText by remember { mutableStateOf(apiKey) }
     var codexApiKeyText by remember { mutableStateOf(codexApiKey) }
+    var codexModelText by remember { mutableStateOf(codexModel) }
+    var codexTranslationModelText by remember { mutableStateOf(codexTranslationModel) }
+    var codexInsightModelText by remember { mutableStateOf(codexInsightModel) }
+    var geminiModelText by remember { mutableStateOf(model) }
+    var geminiTranslationModelText by remember { mutableStateOf(translationModel) }
+    var geminiInsightModelText by remember { mutableStateOf(insightModel) }
     var promptState by remember { mutableStateOf(TextFieldValue(prompt, TextRange(prompt.length))) }
     var translationPromptState by remember { mutableStateOf(TextFieldValue(translationPrompt, TextRange(translationPrompt.length))) }
     var insightPromptState by remember { mutableStateOf(TextFieldValue(insightPrompt, TextRange(insightPrompt.length))) }
@@ -109,6 +113,42 @@ fun GeminiSettingsPage(
     LaunchedEffect(codexApiKey) {
         if (codexApiKeyText != codexApiKey) {
             codexApiKeyText = codexApiKey
+        }
+    }
+
+    LaunchedEffect(codexModel) {
+        if (codexModelText != codexModel) {
+            codexModelText = codexModel
+        }
+    }
+
+    LaunchedEffect(codexTranslationModel) {
+        if (codexTranslationModelText != codexTranslationModel) {
+            codexTranslationModelText = codexTranslationModel
+        }
+    }
+
+    LaunchedEffect(codexInsightModel) {
+        if (codexInsightModelText != codexInsightModel) {
+            codexInsightModelText = codexInsightModel
+        }
+    }
+
+    LaunchedEffect(model) {
+        if (geminiModelText != model) {
+            geminiModelText = model
+        }
+    }
+
+    LaunchedEffect(translationModel) {
+        if (geminiTranslationModelText != translationModel) {
+            geminiTranslationModelText = translationModel
+        }
+    }
+
+    LaunchedEffect(insightModel) {
+        if (geminiInsightModelText != insightModel) {
+            geminiInsightModelText = insightModel
         }
     }
 
@@ -214,15 +254,6 @@ fun GeminiSettingsPage(
 
                             if (aiProvider == AiProviderPreference.OpenAI) {
                                 OutlinedTextField(
-                                    value = codexModel,
-                                    onValueChange = {
-                                        CodexModelPreference.put(context, coroutineScope, it)
-                                    },
-                                    label = { Text(stringResource(R.string.openai_model)) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                OutlinedTextField(
                                     value = openAiBaseUrl,
                                     onValueChange = {
                                         OpenAiBaseUrlPreference.put(context, coroutineScope, it)
@@ -240,107 +271,71 @@ fun GeminiSettingsPage(
                                     },
                                     modifier = Modifier.fillMaxWidth()
                                 )
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                OutlinedTextField(
+                                    value = codexModelText,
+                                    onValueChange = {
+                                        codexModelText = it
+                                        CodexModelPreference.put(context, coroutineScope, it)
+                                    },
+                                    label = { Text(stringResource(R.string.openai_summarization_model)) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                OutlinedTextField(
+                                    value = codexTranslationModelText,
+                                    onValueChange = {
+                                        codexTranslationModelText = it
+                                        CodexTranslationModelPreference.put(context, coroutineScope, it)
+                                    },
+                                    label = { Text(stringResource(R.string.openai_translation_model)) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                OutlinedTextField(
+                                    value = codexInsightModelText,
+                                    onValueChange = {
+                                        codexInsightModelText = it
+                                        CodexInsightModelPreference.put(context, coroutineScope, it)
+                                    },
+                                    label = { Text(stringResource(R.string.openai_insight_model)) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             } else {
-                                // Summarization Model Selection
-                                ExposedDropdownMenuBox(
-                                    expanded = expandedModel,
-                                    onExpandedChange = { expandedModel = !expandedModel }
-                                ) {
-                                    OutlinedTextField(
-                                        value = model,
-                                        onValueChange = {},
-                                        readOnly = true,
-                                        label = { Text(stringResource(R.string.summarization_model)) },
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedModel)
-                                        },
-                                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                                    )
-                                    ExposedDropdownMenu(
-                                        expanded = expandedModel,
-                                        onDismissRequest = { expandedModel = false }
-                                    ) {
-                                        val userRequestedModels = GeminiModelPreference.availableModels
-
-                                        userRequestedModels.forEach { m ->
-                                            DropdownMenuItem(
-                                                text = { Text(m) },
-                                                onClick = {
-                                                    GeminiModelPreference.put(context, coroutineScope, m)
-                                                    expandedModel = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
+                                OutlinedTextField(
+                                    value = geminiModelText,
+                                    onValueChange = {
+                                        geminiModelText = it
+                                        GeminiModelPreference.put(context, coroutineScope, it)
+                                    },
+                                    label = { Text(stringResource(R.string.summarization_model)) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                // Translation Model Selection
-                                ExposedDropdownMenuBox(
-                                    expanded = expandedTranslationModel,
-                                    onExpandedChange = { expandedTranslationModel = !expandedTranslationModel }
-                                ) {
-                                    OutlinedTextField(
-                                        value = translationModel,
-                                        onValueChange = {},
-                                        readOnly = true,
-                                        label = { Text(stringResource(R.string.translation_model)) },
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTranslationModel)
-                                        },
-                                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                                    )
-                                    ExposedDropdownMenu(
-                                        expanded = expandedTranslationModel,
-                                        onDismissRequest = { expandedTranslationModel = false }
-                                    ) {
-                                        val userRequestedModels = GeminiModelPreference.availableModels
-
-                                        userRequestedModels.forEach { m ->
-                                            DropdownMenuItem(
-                                                text = { Text(m) },
-                                                onClick = {
-                                                    GeminiTranslationModelPreference.put(context, coroutineScope, m)
-                                                    expandedTranslationModel = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
+                                OutlinedTextField(
+                                    value = geminiTranslationModelText,
+                                    onValueChange = {
+                                        geminiTranslationModelText = it
+                                        GeminiTranslationModelPreference.put(context, coroutineScope, it)
+                                    },
+                                    label = { Text(stringResource(R.string.translation_model)) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                // Insight Model Selection
-                                ExposedDropdownMenuBox(
-                                    expanded = expandedInsightModel,
-                                    onExpandedChange = { expandedInsightModel = !expandedInsightModel }
-                                ) {
-                                    OutlinedTextField(
-                                        value = insightModel,
-                                        onValueChange = {},
-                                        readOnly = true,
-                                        label = { Text(stringResource(R.string.insight_model)) },
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedInsightModel)
-                                        },
-                                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                                    )
-                                    ExposedDropdownMenu(
-                                        expanded = expandedInsightModel,
-                                        onDismissRequest = { expandedInsightModel = false }
-                                    ) {
-                                        val userRequestedModels = GeminiModelPreference.availableModels
-
-                                        userRequestedModels.forEach { m ->
-                                            DropdownMenuItem(
-                                                text = { Text(m) },
-                                                onClick = {
-                                                    GeminiInsightModelPreference.put(context, coroutineScope, m)
-                                                    expandedInsightModel = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
+                                OutlinedTextField(
+                                    value = geminiInsightModelText,
+                                    onValueChange = {
+                                        geminiInsightModelText = it
+                                        GeminiInsightModelPreference.put(context, coroutineScope, it)
+                                    },
+                                    label = { Text(stringResource(R.string.insight_model)) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                             

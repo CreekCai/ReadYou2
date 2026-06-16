@@ -197,6 +197,7 @@ sealed interface PreferencesKey {
         const val openLink = "openLink"
         const val openLinkAppSpecificBrowser = "openLinkAppSpecificBrowser"
         const val sharedContent = "sharedContent"
+        const val typeChoWorkerUrl = "typeChoWorkerUrl"
         const val typeChoEndpoint = "typeChoEndpoint"
         const val typeChoHomeUrl = "typeChoHomeUrl"
         const val typeChoUsername = "typeChoUsername"
@@ -216,6 +217,8 @@ sealed interface PreferencesKey {
         const val geminiInsightPrompt = "geminiInsightPrompt"
         const val codexApiKey = "codexApiKey"
         const val codexModel = "codexModel"
+        const val codexTranslationModel = "codexTranslationModel"
+        const val codexInsightModel = "codexInsightModel"
         const val openAiBaseUrl = "openAiBaseUrl"
 
         // TTS
@@ -294,6 +297,7 @@ sealed interface PreferencesKey {
                 IntKey(openLink),
                 StringKey(openLinkAppSpecificBrowser),
                 IntKey(sharedContent),
+                StringKey(typeChoWorkerUrl),
                 StringKey(typeChoEndpoint),
                 StringKey(typeChoHomeUrl),
                 StringKey(typeChoUsername),
@@ -311,6 +315,8 @@ sealed interface PreferencesKey {
                 StringKey(geminiInsightPrompt),
                 StringKey(codexApiKey),
                 StringKey(codexModel),
+                StringKey(codexTranslationModel),
+                StringKey(codexInsightModel),
                 StringKey(openAiBaseUrl),
                 // TTS
                 StringKey(ttsConfig),
@@ -399,6 +405,7 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
         const val openLink = "openLink"
         const val openLinkAppSpecificBrowser = "openLinkAppSpecificBrowser"
         const val sharedContent = "sharedContent"
+        const val typeChoWorkerUrl = "typeChoWorkerUrl"
         const val typeChoEndpoint = "typeChoEndpoint"
         const val typeChoHomeUrl = "typeChoHomeUrl"
         const val typeChoUsername = "typeChoUsername"
@@ -418,6 +425,8 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
         const val geminiInsightPrompt = "geminiInsightPrompt"
         const val codexApiKey = "codexApiKey"
         const val codexModel = "codexModel"
+        const val codexTranslationModel = "codexTranslationModel"
+        const val codexInsightModel = "codexInsightModel"
         const val openAiBaseUrl = "openAiBaseUrl"
 
         // TTS
@@ -572,6 +581,8 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
                         String::class.java,
                     ),
                 sharedContent to DataStoreKey(intPreferencesKey(sharedContent), Int::class.java),
+                typeChoWorkerUrl to
+                    DataStoreKey(stringPreferencesKey(typeChoWorkerUrl), String::class.java),
                 typeChoEndpoint to
                     DataStoreKey(stringPreferencesKey(typeChoEndpoint), String::class.java),
                 typeChoHomeUrl to
@@ -602,6 +613,10 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
                     DataStoreKey(stringPreferencesKey(codexApiKey), String::class.java),
                 codexModel to
                     DataStoreKey(stringPreferencesKey(codexModel), String::class.java),
+                codexTranslationModel to
+                    DataStoreKey(stringPreferencesKey(codexTranslationModel), String::class.java),
+                codexInsightModel to
+                    DataStoreKey(stringPreferencesKey(codexInsightModel), String::class.java),
                 openAiBaseUrl to
                     DataStoreKey(stringPreferencesKey(openAiBaseUrl), String::class.java),
                 // TTS
