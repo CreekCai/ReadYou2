@@ -69,6 +69,9 @@ sealed interface Route : NavKey {
     // Gemini
     @Serializable data object GeminiSettings : Route
 
+    // Share
+    @Serializable data object ShareSettings : Route
+
     // TTS
     @Serializable data object TtsSettings : Route
 }

@@ -34,6 +34,7 @@ import me.ash.reader.ui.page.home.feeds.subscribe.SubscribeViewModel
 import me.ash.reader.ui.page.nav3.key.Route
 import me.ash.reader.ui.page.settings.GeminiSettingsPage
 import me.ash.reader.ui.page.settings.SettingsPage
+import me.ash.reader.ui.page.settings.ShareSettingsPage
 import me.ash.reader.ui.page.settings.accounts.AccountDetailsPage
 import me.ash.reader.ui.page.settings.accounts.AccountViewModel
 import me.ash.reader.ui.page.settings.accounts.AccountsPage
@@ -171,6 +172,7 @@ fun AppEntry(backStack: NavBackStack<NavKey>) {
                                 },
                                 navigateToTipsAndSupport = { backStack.add(Route.TipsAndSupport) },
                                 navigateToGeminiSettings = { backStack.add(Route.GeminiSettings) },
+                                navigateToShareSettings = { backStack.add(Route.ShareSettings) },
                                 navigateToTtsSettings = { backStack.add(Route.TtsSettings) },
                             )
                         }
@@ -258,6 +260,7 @@ fun AppEntry(backStack: NavBackStack<NavKey>) {
                         }
                     Route.LicenseList -> NavEntry(key) { LicenseListPage(onBack = onBack) }
                     Route.GeminiSettings -> NavEntry(key) { GeminiSettingsPage(onBack = onBack) }
+                    Route.ShareSettings -> NavEntry(key) { ShareSettingsPage(onBack = onBack) }
                     Route.TtsSettings -> NavEntry(key) { TtsSettingsPage(onBack = onBack) }
                     else -> NavEntry(key) { throw Exception("Unknown destination") }
                 }

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.RecordVoiceOver
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.TipsAndUpdates
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.rounded.Close
@@ -56,6 +57,7 @@ fun SettingsPage(
     navigateToTroubleshooting: () -> Unit,
     navigateToTipsAndSupport: () -> Unit,
     navigateToGeminiSettings: () -> Unit,
+    navigateToShareSettings: () -> Unit,
     navigateToTtsSettings: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -120,6 +122,14 @@ fun SettingsPage(
                 }
                 item {
                     SelectableSettingGroupItem(
+                        title = stringResource(R.string.share_settings),
+                        desc = stringResource(R.string.share_settings_desc),
+                        icon = Icons.Outlined.Share,
+                        onClick = navigateToShareSettings
+                    )
+                }
+                item {
+                    SelectableSettingGroupItem(
                         title = stringResource(R.string.color_and_style),
                         desc = stringResource(R.string.color_and_style_desc),
                         icon = Icons.Outlined.Palette,
@@ -136,8 +146,8 @@ fun SettingsPage(
                 }
                 item {
                     SelectableSettingGroupItem(
-                        title = "Text-to-Speech",
-                        desc = "Configure TTS engine",
+                        title = stringResource(R.string.tts_settings),
+                        desc = stringResource(R.string.tts_settings_desc),
                         icon = Icons.Outlined.RecordVoiceOver,
                         onClick = navigateToTtsSettings
                     )

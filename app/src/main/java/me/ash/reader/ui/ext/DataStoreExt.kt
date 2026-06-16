@@ -197,11 +197,16 @@ sealed interface PreferencesKey {
         const val openLink = "openLink"
         const val openLinkAppSpecificBrowser = "openLinkAppSpecificBrowser"
         const val sharedContent = "sharedContent"
+        const val typeChoEndpoint = "typeChoEndpoint"
+        const val typeChoHomeUrl = "typeChoHomeUrl"
+        const val typeChoUsername = "typeChoUsername"
+        const val typeChoPassword = "typeChoPassword"
 
         // Languages
         const val languages = "languages"
 
-        // Gemini
+        // AI
+        const val aiProvider = "aiProvider"
         const val geminiApiKey = "geminiApiKey"
         const val geminiModel = "geminiModel"
         const val geminiTranslationModel = "geminiTranslationModel"
@@ -209,9 +214,13 @@ sealed interface PreferencesKey {
         const val geminiPrompt = "geminiPrompt"
         const val geminiTranslationPrompt = "geminiTranslationPrompt"
         const val geminiInsightPrompt = "geminiInsightPrompt"
+        const val codexApiKey = "codexApiKey"
+        const val codexModel = "codexModel"
+        const val openAiBaseUrl = "openAiBaseUrl"
 
         // TTS
         const val ttsConfig = "ttsConfig"
+        const val ttsReadAiSummaryOnly = "ttsReadAiSummaryOnly"
 
         private val keyList =
             listOf(
@@ -285,9 +294,14 @@ sealed interface PreferencesKey {
                 IntKey(openLink),
                 StringKey(openLinkAppSpecificBrowser),
                 IntKey(sharedContent),
+                StringKey(typeChoEndpoint),
+                StringKey(typeChoHomeUrl),
+                StringKey(typeChoUsername),
+                StringKey(typeChoPassword),
                 // Languages
                 IntKey(languages),
-                // Gemini
+                // AI
+                IntKey(aiProvider),
                 StringKey(geminiApiKey),
                 StringKey(geminiModel),
                 StringKey(geminiTranslationModel),
@@ -295,8 +309,12 @@ sealed interface PreferencesKey {
                 StringKey(geminiPrompt),
                 StringKey(geminiTranslationPrompt),
                 StringKey(geminiInsightPrompt),
+                StringKey(codexApiKey),
+                StringKey(codexModel),
+                StringKey(openAiBaseUrl),
                 // TTS
                 StringKey(ttsConfig),
+                BooleanKey(ttsReadAiSummaryOnly),
             )
 
         val keys = keyList.associateBy { it.name }
@@ -381,11 +399,16 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
         const val openLink = "openLink"
         const val openLinkAppSpecificBrowser = "openLinkAppSpecificBrowser"
         const val sharedContent = "sharedContent"
+        const val typeChoEndpoint = "typeChoEndpoint"
+        const val typeChoHomeUrl = "typeChoHomeUrl"
+        const val typeChoUsername = "typeChoUsername"
+        const val typeChoPassword = "typeChoPassword"
 
         // Languages
         const val languages = "languages"
 
-        // Gemini
+        // AI
+        const val aiProvider = "aiProvider"
         const val geminiApiKey = "geminiApiKey"
         const val geminiModel = "geminiModel"
         const val geminiTranslationModel = "geminiTranslationModel"
@@ -393,9 +416,13 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
         const val geminiPrompt = "geminiPrompt"
         const val geminiTranslationPrompt = "geminiTranslationPrompt"
         const val geminiInsightPrompt = "geminiInsightPrompt"
+        const val codexApiKey = "codexApiKey"
+        const val codexModel = "codexModel"
+        const val openAiBaseUrl = "openAiBaseUrl"
 
         // TTS
         const val ttsConfig = "ttsConfig"
+        const val ttsReadAiSummaryOnly = "ttsReadAiSummaryOnly"
 
         val keys: MutableMap<String, DataStoreKey<*>> =
             mutableMapOf(
@@ -545,9 +572,18 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
                         String::class.java,
                     ),
                 sharedContent to DataStoreKey(intPreferencesKey(sharedContent), Int::class.java),
+                typeChoEndpoint to
+                    DataStoreKey(stringPreferencesKey(typeChoEndpoint), String::class.java),
+                typeChoHomeUrl to
+                    DataStoreKey(stringPreferencesKey(typeChoHomeUrl), String::class.java),
+                typeChoUsername to
+                    DataStoreKey(stringPreferencesKey(typeChoUsername), String::class.java),
+                typeChoPassword to
+                    DataStoreKey(stringPreferencesKey(typeChoPassword), String::class.java),
                 // Languages
                 languages to DataStoreKey(intPreferencesKey(languages), Int::class.java),
-                // Gemini
+                // AI
+                aiProvider to DataStoreKey(intPreferencesKey(aiProvider), Int::class.java),
                 geminiApiKey to
                     DataStoreKey(stringPreferencesKey(geminiApiKey), String::class.java),
                 geminiModel to
@@ -562,9 +598,17 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
                     DataStoreKey(stringPreferencesKey(geminiTranslationPrompt), String::class.java),
                 geminiInsightPrompt to
                     DataStoreKey(stringPreferencesKey(geminiInsightPrompt), String::class.java),
+                codexApiKey to
+                    DataStoreKey(stringPreferencesKey(codexApiKey), String::class.java),
+                codexModel to
+                    DataStoreKey(stringPreferencesKey(codexModel), String::class.java),
+                openAiBaseUrl to
+                    DataStoreKey(stringPreferencesKey(openAiBaseUrl), String::class.java),
                 // TTS
                 ttsConfig to
                     DataStoreKey(stringPreferencesKey(ttsConfig), String::class.java),
+                ttsReadAiSummaryOnly to
+                    DataStoreKey(booleanPreferencesKey(ttsReadAiSummaryOnly), Boolean::class.java),
             )
     }
 }

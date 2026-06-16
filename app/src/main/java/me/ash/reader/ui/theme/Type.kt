@@ -2,6 +2,7 @@
 
 package me.ash.reader.ui.theme
 
+import android.graphics.Typeface
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.ExperimentalTextApi
@@ -113,6 +114,8 @@ val GoogleSansFontFamily =
         GoogleSansSemiBoldItalic,
         GoogleSansBoldItalic,
     )
+
+val SongtiFontFamily = FontFamily(Typeface.create("serif", Typeface.NORMAL))
 
 /**
  * Resolve the text to Rtl if the text requires BiDirectional

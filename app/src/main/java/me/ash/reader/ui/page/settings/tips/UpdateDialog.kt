@@ -36,7 +36,6 @@ import me.ash.reader.infrastructure.net.Download
 import me.ash.reader.ui.component.base.RYDialog
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.installLatestApk
-import me.ash.reader.ui.ext.openURL
 
 @Composable
 fun UpdateDialog(
@@ -50,6 +49,7 @@ fun UpdateDialog(
     val newVersionPublishDate = LocalNewVersionPublishDate.current
     val newVersionLog = LocalNewVersionLog.current
     val newVersionSize = LocalNewVersionSize.current
+    val newVersionDownloadUrl = LocalNewVersionDownloadUrl.current
 
     val settings = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -107,15 +107,9 @@ fun UpdateDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    context.openURL("${context.getString(R.string.github_link)}/releases/latest", OpenLinkPreference.AutoPreferCustomTabs)
-                    // Disable automatic updates in F-Droid
-//                    if (downloadState !is Download.Progress) {
-//                        updateViewModel.dispatch(
-//                            UpdateViewAction.DownloadUpdate(
-//                                url = context.newVersionDownloadUrl,
-//                            )
-//                        )
-//                    }
+                    if (downloadState !is Download.Progress) {
+                        updateViewModel.downloadUpdate(newVersionDownloadUrl)
+                    }
                 }
             ) {
                 Text(

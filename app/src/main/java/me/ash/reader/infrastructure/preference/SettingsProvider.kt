@@ -137,11 +137,16 @@ class SettingsProvider @Inject constructor(
             LocalOpenLink provides settings.openLink,
             LocalOpenLinkSpecificBrowser provides settings.openLinkSpecificBrowser,
             LocalSharedContent provides settings.sharedContent,
+            LocalTypeChoEndpoint provides settings.typeChoEndpoint,
+            LocalTypeChoHomeUrl provides settings.typeChoHomeUrl,
+            LocalTypeChoUsername provides settings.typeChoUsername,
+            LocalTypeChoPassword provides settings.typeChoPassword,
 
             // Languages
             LocalLanguages provides settings.languages,
 
-            // Gemini
+            // AI
+            LocalAiProvider provides settings.aiProvider,
             LocalGeminiApiKey provides settings.geminiApiKey,
             LocalGeminiModel provides settings.geminiModel,
             LocalGeminiTranslationModel provides settings.geminiTranslationModel,
@@ -149,9 +154,13 @@ class SettingsProvider @Inject constructor(
             LocalGeminiPrompt provides settings.geminiPrompt,
             LocalGeminiTranslationPrompt provides settings.geminiTranslationPrompt,
             LocalGeminiInsightPrompt provides settings.geminiInsightPrompt,
+            LocalCodexApiKey provides settings.codexApiKey,
+            LocalCodexModel provides settings.codexModel,
+            LocalOpenAiBaseUrl provides settings.openAiBaseUrl,
 
             // TTS
             LocalTtsConfig provides settings.ttsConfig,
+            LocalTtsReadAiSummaryOnly provides settings.ttsReadAiSummaryOnly,
         ) {
             content()
         }

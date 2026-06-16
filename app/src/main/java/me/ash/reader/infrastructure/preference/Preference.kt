@@ -86,11 +86,16 @@ fun Preferences.toSettings(): Settings {
         openLink = OpenLinkPreference.fromPreferences(this),
         openLinkSpecificBrowser = OpenLinkSpecificBrowserPreference.fromPreferences(this),
         sharedContent = SharedContentPreference.fromPreferences(this),
+        typeChoEndpoint = TypeChoEndpointPreference.fromPreferences(this),
+        typeChoHomeUrl = TypeChoHomeUrlPreference.fromPreferences(this),
+        typeChoUsername = TypeChoUsernamePreference.fromPreferences(this),
+        typeChoPassword = TypeChoPasswordPreference.fromPreferences(this),
 
         // Languages
         languages = LanguagesPreference.fromPreferences(this),
 
-        // Gemini
+        // AI
+        aiProvider = AiProviderPreference.fromPreferences(this),
         geminiApiKey = GeminiApiKeyPreference.fromPreferences(this),
         geminiModel = GeminiModelPreference.fromPreferences(this),
         geminiTranslationModel = GeminiTranslationModelPreference.fromPreferences(this),
@@ -98,8 +103,12 @@ fun Preferences.toSettings(): Settings {
         geminiPrompt = GeminiPromptPreference.fromPreferences(this),
         geminiTranslationPrompt = GeminiTranslationPromptPreference.fromPreferences(this),
         geminiInsightPrompt = GeminiInsightPromptPreference.fromPreferences(this),
+        codexApiKey = CodexApiKeyPreference.fromPreferences(this),
+        codexModel = CodexModelPreference.fromPreferences(this),
+        openAiBaseUrl = OpenAiBaseUrlPreference.fromPreferences(this),
 
         // TTS
         ttsConfig = TtsConfigPreference.fromPreferences(this),
+        ttsReadAiSummaryOnly = TtsReadAiSummaryOnlyPreference.fromPreferences(this),
     )
 }

@@ -68,6 +68,7 @@ import me.ash.reader.ui.component.base.RYDialog
 import me.ash.reader.ui.page.adaptive.SummarizationState
 import me.ash.reader.ui.page.adaptive.InsightState
 import me.ash.reader.infrastructure.preference.LocalSharedContent
+import me.ash.reader.infrastructure.preference.LocalTtsReadAiSummaryOnly
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -103,9 +104,16 @@ fun ReadingPage(
     val boldCharacters = LocalReadingBoldCharacters.current
     val coroutineScope = rememberCoroutineScope()
     val sharedContent = LocalSharedContent.current
+    val ttsReadAiSummaryOnly = LocalTtsReadAiSummaryOnly.current
     
     val summarizationState = viewModel.summarizationState.collectAsStateValue()
     val insightState = viewModel.insightState.collectAsStateValue()
+    val ttsContent =
+        if (ttsReadAiSummaryOnly && summarizationState is SummarizationState.Success) {
+            (summarizationState as SummarizationState.Success).summary
+        } else {
+            readerState.content.text
+        }
 
     var isReaderScrollingDown by remember { mutableStateOf(false) }
     var showFullScreenImageViewer by remember { mutableStateOf(false) }
@@ -339,7 +347,7 @@ fun ReadingPage(
                         onBoldCharacters = { (!boldCharacters).put(context, coroutineScope) },
                         onReadAloud = {
                             viewModel.textToSpeechManager.readHtml(
-                                readerState.content.text ?: return@BottomBar
+                                ttsContent ?: return@BottomBar
                             )
                         },
                         ttsButton = {
@@ -352,7 +360,7 @@ fun ReadingPage(
 
                                         TextToSpeechManager.State.Idle -> {
                                             viewModel.textToSpeechManager.readHtml(
-                                                readerState.content.text ?: ""
+                                                ttsContent ?: ""
                                             )
                                         }
 

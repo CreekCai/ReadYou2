@@ -15,6 +15,7 @@ import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 import me.ash.reader.ui.ext.restart
 import me.ash.reader.ui.theme.GoogleSansFontFamily
+import me.ash.reader.ui.theme.SongtiFontFamily
 import me.ash.reader.ui.theme.SystemTypography
 import me.ash.reader.ui.theme.applyFontFamily
 
@@ -24,6 +25,8 @@ sealed class BasicFontsPreference(val value: Int) : Preference() {
     object System : BasicFontsPreference(0)
 
     object GoogleSans : BasicFontsPreference(1)
+
+    object Songti : BasicFontsPreference(2)
 
     object External : BasicFontsPreference(5)
 
@@ -40,6 +43,7 @@ sealed class BasicFontsPreference(val value: Int) : Preference() {
         when (this) {
             System -> context.getString(R.string.system_default)
             GoogleSans -> context.getString(R.string.google_sans)
+            Songti -> "宋体"
             External -> context.getString(R.string.external_fonts)
         }
 
@@ -47,6 +51,7 @@ sealed class BasicFontsPreference(val value: Int) : Preference() {
         when (this) {
             System -> FontFamily.Default
             GoogleSans -> GoogleSansFontFamily
+            Songti -> SongtiFontFamily
             External ->
                 ExternalFonts.loadBasicTypography(context).displayLarge.fontFamily
                     ?: FontFamily.Default
@@ -56,18 +61,20 @@ sealed class BasicFontsPreference(val value: Int) : Preference() {
         when (this) {
             System -> SystemTypography
             GoogleSans -> SystemTypography.applyFontFamily(GoogleSansFontFamily)
+            Songti -> SystemTypography.applyFontFamily(SongtiFontFamily)
             External -> ExternalFonts.loadBasicTypography(context)
         }
 
     companion object {
 
-        val default = GoogleSans
-        val values = listOf(GoogleSans, System, External)
+        val default = Songti
+        val values = listOf(Songti, GoogleSans, System, External)
 
         fun fromPreferences(preferences: Preferences): BasicFontsPreference =
             when (preferences[DataStoreKey.keys[basicFonts]?.key as Preferences.Key<Int>]) {
                 0 -> System
                 1 -> GoogleSans
+                2 -> Songti
                 5 -> External
                 else -> default
             }

@@ -45,6 +45,10 @@ import androidx.compose.ui.zIndex
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
 import me.ash.reader.infrastructure.preference.LocalSharedContent
+import me.ash.reader.infrastructure.preference.LocalTypeChoEndpoint
+import me.ash.reader.infrastructure.preference.LocalTypeChoHomeUrl
+import me.ash.reader.infrastructure.preference.LocalTypeChoPassword
+import me.ash.reader.infrastructure.preference.LocalTypeChoUsername
 import me.ash.reader.infrastructure.preference.ReadingPageTonalElevationPreference
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.page.adaptive.NavigationAction
@@ -68,6 +72,10 @@ fun TopBar(
 ) {
     val context = LocalContext.current
     val sharedContent = LocalSharedContent.current
+    val typeChoEndpoint = LocalTypeChoEndpoint.current
+    val typeChoHomeUrl = LocalTypeChoHomeUrl.current
+    val typeChoUsername = LocalTypeChoUsername.current
+    val typeChoPassword = LocalTypeChoPassword.current
     val isOutlined =
         LocalReadingPageTonalElevation.current == ReadingPageTonalElevationPreference.Outlined
 
@@ -147,8 +155,16 @@ fun TopBar(
                             contentDescription = stringResource(R.string.share),
                             tint = MaterialTheme.colorScheme.onSurface,
                         ) {
-                            val contentToShare = readerState.content.text ?: link
-                            sharedContent.share(context, title, contentToShare)
+                            sharedContent.share(
+                                context = context,
+                                title = title,
+                                link = link,
+                                content = readerState.content.text,
+                                typeChoEndpoint = typeChoEndpoint,
+                                typeChoHomeUrl = typeChoHomeUrl,
+                                typeChoUsername = typeChoUsername,
+                                typeChoPassword = typeChoPassword,
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),

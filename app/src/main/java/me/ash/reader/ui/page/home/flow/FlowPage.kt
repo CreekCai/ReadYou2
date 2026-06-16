@@ -87,6 +87,10 @@ import me.ash.reader.infrastructure.preference.LocalOpenLinkSpecificBrowser
 import me.ash.reader.infrastructure.preference.LocalSettings
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.LocalSortUnreadArticles
+import me.ash.reader.infrastructure.preference.LocalTypeChoEndpoint
+import me.ash.reader.infrastructure.preference.LocalTypeChoHomeUrl
+import me.ash.reader.infrastructure.preference.LocalTypeChoPassword
+import me.ash.reader.infrastructure.preference.LocalTypeChoUsername
 import me.ash.reader.infrastructure.preference.PullToLoadNextFeedPreference
 import me.ash.reader.infrastructure.preference.SortUnreadArticlesPreference
 import me.ash.reader.ui.component.FilterBar
@@ -131,6 +135,10 @@ fun FlowPage(
     val filterBarPadding = LocalFlowFilterBarPadding.current
     val filterBarTonalElevation = LocalFlowFilterBarTonalElevation.current
     val sharedContent = LocalSharedContent.current
+    val typeChoEndpoint = LocalTypeChoEndpoint.current
+    val typeChoHomeUrl = LocalTypeChoHomeUrl.current
+    val typeChoUsername = LocalTypeChoUsername.current
+    val typeChoPassword = LocalTypeChoPassword.current
     val markAsReadOnScroll = LocalMarkAsReadOnScroll.current.value
     val context = LocalContext.current
 
@@ -213,11 +221,23 @@ fun FlowPage(
             }
         }
 
-    val onShare: ((ArticleWithFeed) -> Unit)? = remember {
-        { articleWithFeed ->
-            with(articleWithFeed.article) { sharedContent.share(context, title, link) }
+    val onShare: ((ArticleWithFeed) -> Unit)? =
+        remember(sharedContent, typeChoEndpoint, typeChoHomeUrl, typeChoUsername, typeChoPassword) {
+            { articleWithFeed ->
+                with(articleWithFeed.article) {
+                    sharedContent.share(
+                        context = context,
+                        title = title,
+                        link = link,
+                        content = rawDescription,
+                        typeChoEndpoint = typeChoEndpoint,
+                        typeChoHomeUrl = typeChoHomeUrl,
+                        typeChoUsername = typeChoUsername,
+                        typeChoPassword = typeChoPassword,
+                    )
+                }
+            }
         }
-    }
 
     LaunchedEffect(onSearch) {
         if (!onSearch) {
