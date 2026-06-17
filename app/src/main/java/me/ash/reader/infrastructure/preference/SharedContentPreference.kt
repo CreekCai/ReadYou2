@@ -241,7 +241,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
             .replace("&amp;", "&")
 
     private fun typeChoPostUrl(homeUrl: String, postId: String): String =
-        "${homeUrl.trim().trimEnd('/')}/archives/${postId.trim().trimStart('/')}/"
+        "${homeUrl.trim().trimEnd('/')}/post/${postId.trim().trimStart('/')}"
 
     private fun copyToClipboard(context: Context, label: String, text: String) {
         Handler(Looper.getMainLooper()).post {
