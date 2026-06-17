@@ -9,6 +9,10 @@ import android.widget.Toast
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
+import java.net.HttpURLConnection
+import java.net.URL
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,11 +22,6 @@ import me.ash.reader.ui.ext.DataStoreKey.Companion.sharedContent
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.orNotEmpty
 import me.ash.reader.ui.ext.put
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.concurrent.TimeUnit
 
 val LocalSharedContent = compositionLocalOf<SharedContentPreference> { SharedContentPreference.default }
 
@@ -116,43 +115,53 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                                 append(link)
                             }
                         },
-                    )
-                val request =
-                    Request.Builder()
-                        .url(endpoint.trim())
-                        .header("User-Agent", "ReadYou TypeCho Publisher")
-                        .post(body.toRequestBody("text/xml; charset=utf-8".toMediaType()))
-                        .build()
-                OkHttpClient.Builder()
-                    .connectTimeout(15, TimeUnit.SECONDS)
-                    .readTimeout(30, TimeUnit.SECONDS)
-                    .build()
-                    .newCall(request)
-                    .execute()
-                    .use { response ->
-                    val responseText = response.body?.string().orEmpty()
-                    if (!response.isSuccessful) {
-                        error("HTTP ${response.code}${responseText.shortErrorSuffix()}")
-                    }
-                    if (responseText.contains("<fault>", ignoreCase = true)) {
-                        error(responseText.extractXmlRpcFault().ifBlank { "XML-RPC fault" })
-                    }
-                    val postId = responseText.extractXmlRpcValue()
-                    if (postId.isBlank()) {
-                        error("Missing post id")
-                    }
-                    val postUrl = typeChoPostUrl(homeUrl, postId)
-                    copyToClipboard(
-                        context = context,
-                        label = title.ifBlank { context.getString(R.string.share_to_typecho) },
-                        text = title.orNotEmpty { "$it\n" } + postUrl,
-                    )
+                )
+                val response = postXmlRpc(endpoint.trim(), body)
+                val responseText = response.body
+                if (response.code !in 200..299) {
+                    error("HTTP ${response.code}${responseText.shortErrorSuffix()}")
                 }
+                if (responseText.contains("<fault>", ignoreCase = true)) {
+                    error(responseText.extractXmlRpcFault().ifBlank { "XML-RPC fault" })
+                }
+                val postId = responseText.extractXmlRpcValue()
+                if (postId.isBlank()) {
+                    error("Missing post id")
+                }
+                val postUrl = typeChoPostUrl(homeUrl, postId)
+                copyToClipboard(
+                    context = context,
+                    label = title.ifBlank { context.getString(R.string.share_to_typecho) },
+                    text = title.orNotEmpty { "$it\n" } + postUrl,
+                )
             }.onSuccess {
                 toast(context, context.getString(R.string.typecho_upload_success_copied))
             }.onFailure {
                 toast(context, context.getString(R.string.typecho_upload_failed, it.message ?: "unknown"))
             }
+        }
+    }
+
+    private data class XmlRpcResponse(val code: Int, val body: String)
+
+    private fun postXmlRpc(endpoint: String, body: String): XmlRpcResponse {
+        val payload = body.toByteArray(StandardCharsets.UTF_8)
+        val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+            connectTimeout = TimeUnit.SECONDS.toMillis(15).toInt()
+            readTimeout = TimeUnit.SECONDS.toMillis(30).toInt()
+            requestMethod = "POST"
+            doOutput = true
+            setRequestProperty("User-Agent", "ReadYou TypeCho Publisher")
+            setRequestProperty("Content-Type", "text/xml; charset=utf-8")
+            setFixedLengthStreamingMode(payload.size)
+        }
+        return try {
+            connection.outputStream.use { it.write(payload) }
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            XmlRpcResponse(code, stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty())
+        } finally {
+            connection.disconnect()
         }
     }
 
@@ -187,7 +196,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
             <param><value><boolean>1</boolean></value></param>
           </params>
         </methodCall>
-        """.trimIndent()
+        """.trim()
 
     private fun String.xmlEscape(): String =
         filter { it == '\t' || it == '\n' || it == '\r' || it >= ' ' }
