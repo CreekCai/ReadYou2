@@ -86,7 +86,6 @@ fun Preferences.toSettings(): Settings {
         openLink = OpenLinkPreference.fromPreferences(this),
         openLinkSpecificBrowser = OpenLinkSpecificBrowserPreference.fromPreferences(this),
         sharedContent = SharedContentPreference.fromPreferences(this),
-        typeChoWorkerUrl = TypeChoWorkerUrlPreference.fromPreferences(this),
         typeChoEndpoint = TypeChoEndpointPreference.fromPreferences(this),
         typeChoHomeUrl = TypeChoHomeUrlPreference.fromPreferences(this),
         typeChoUsername = TypeChoUsernamePreference.fromPreferences(this),

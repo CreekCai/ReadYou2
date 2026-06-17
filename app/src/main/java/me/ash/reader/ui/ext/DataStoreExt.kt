@@ -197,7 +197,6 @@ sealed interface PreferencesKey {
         const val openLink = "openLink"
         const val openLinkAppSpecificBrowser = "openLinkAppSpecificBrowser"
         const val sharedContent = "sharedContent"
-        const val typeChoWorkerUrl = "typeChoWorkerUrl"
         const val typeChoEndpoint = "typeChoEndpoint"
         const val typeChoHomeUrl = "typeChoHomeUrl"
         const val typeChoUsername = "typeChoUsername"
@@ -297,7 +296,6 @@ sealed interface PreferencesKey {
                 IntKey(openLink),
                 StringKey(openLinkAppSpecificBrowser),
                 IntKey(sharedContent),
-                StringKey(typeChoWorkerUrl),
                 StringKey(typeChoEndpoint),
                 StringKey(typeChoHomeUrl),
                 StringKey(typeChoUsername),
@@ -405,7 +403,6 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
         const val openLink = "openLink"
         const val openLinkAppSpecificBrowser = "openLinkAppSpecificBrowser"
         const val sharedContent = "sharedContent"
-        const val typeChoWorkerUrl = "typeChoWorkerUrl"
         const val typeChoEndpoint = "typeChoEndpoint"
         const val typeChoHomeUrl = "typeChoHomeUrl"
         const val typeChoUsername = "typeChoUsername"
@@ -581,8 +578,6 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
                         String::class.java,
                     ),
                 sharedContent to DataStoreKey(intPreferencesKey(sharedContent), Int::class.java),
-                typeChoWorkerUrl to
-                    DataStoreKey(stringPreferencesKey(typeChoWorkerUrl), String::class.java),
                 typeChoEndpoint to
                     DataStoreKey(stringPreferencesKey(typeChoEndpoint), String::class.java),
                 typeChoHomeUrl to

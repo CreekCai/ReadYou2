@@ -11,7 +11,6 @@ import me.ash.reader.ui.ext.DataStoreKey.Companion.typeChoEndpoint
 import me.ash.reader.ui.ext.DataStoreKey.Companion.typeChoHomeUrl
 import me.ash.reader.ui.ext.DataStoreKey.Companion.typeChoPassword
 import me.ash.reader.ui.ext.DataStoreKey.Companion.typeChoUsername
-import me.ash.reader.ui.ext.DataStoreKey.Companion.typeChoWorkerUrl
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.put
 
@@ -19,20 +18,6 @@ val LocalTypeChoEndpoint = compositionLocalOf { TypeChoEndpointPreference.defaul
 val LocalTypeChoHomeUrl = compositionLocalOf { TypeChoHomeUrlPreference.default }
 val LocalTypeChoUsername = compositionLocalOf { TypeChoUsernamePreference.default }
 val LocalTypeChoPassword = compositionLocalOf { TypeChoPasswordPreference.default }
-val LocalTypeChoWorkerUrl = compositionLocalOf { TypeChoWorkerUrlPreference.default }
-
-object TypeChoWorkerUrlPreference {
-    const val default = ""
-
-    fun put(context: Context, scope: CoroutineScope, value: String) {
-        scope.launch(Dispatchers.IO) {
-            context.dataStore.put(DataStoreKey.typeChoWorkerUrl, value.trim())
-        }
-    }
-
-    fun fromPreferences(preferences: Preferences): String =
-        preferences[DataStoreKey.keys[typeChoWorkerUrl]?.key as Preferences.Key<String>] ?: default
-}
 
 object TypeChoEndpointPreference {
     const val default = ""

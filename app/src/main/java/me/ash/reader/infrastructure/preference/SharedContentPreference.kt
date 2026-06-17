@@ -53,7 +53,6 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         title: String?,
         link: String?,
         content: String? = null,
-        typeChoWorkerUrl: String = "",
         typeChoEndpoint: String = "",
         typeChoHomeUrl: String = "",
         typeChoUsername: String = "",
@@ -65,7 +64,6 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
             TypeCho ->
                 uploadToTypeCho(
                     context = context,
-                    workerUrl = typeChoWorkerUrl,
                     endpoint = typeChoEndpoint,
                     homeUrl = typeChoHomeUrl,
                     username = typeChoUsername,
@@ -86,7 +84,6 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
 
     private fun uploadToTypeCho(
         context: Context,
-        workerUrl: String,
         endpoint: String,
         homeUrl: String,
         username: String,
@@ -96,8 +93,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         content: String,
     ) {
         if (
-            workerUrl.isBlank() ||
-                endpoint.isBlank() ||
+            endpoint.isBlank() ||
                 homeUrl.isBlank() ||
                 username.isBlank() ||
                 password.isBlank()
@@ -123,8 +119,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                     )
                 val request =
                     Request.Builder()
-                        .url(workerUrl.trim())
-                        .header("X-Target-URL", endpoint.trim())
+                        .url(endpoint.trim())
                         .header("User-Agent", "ReadYou TypeCho Publisher")
                         .post(body.toRequestBody("text/xml; charset=utf-8".toMediaType()))
                         .build()

@@ -49,7 +49,6 @@ import me.ash.reader.infrastructure.preference.LocalTypeChoEndpoint
 import me.ash.reader.infrastructure.preference.LocalTypeChoHomeUrl
 import me.ash.reader.infrastructure.preference.LocalTypeChoPassword
 import me.ash.reader.infrastructure.preference.LocalTypeChoUsername
-import me.ash.reader.infrastructure.preference.LocalTypeChoWorkerUrl
 import me.ash.reader.infrastructure.preference.ReadingPageTonalElevationPreference
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.page.adaptive.NavigationAction
@@ -73,7 +72,6 @@ fun TopBar(
 ) {
     val context = LocalContext.current
     val sharedContent = LocalSharedContent.current
-    val typeChoWorkerUrl = LocalTypeChoWorkerUrl.current
     val typeChoEndpoint = LocalTypeChoEndpoint.current
     val typeChoHomeUrl = LocalTypeChoHomeUrl.current
     val typeChoUsername = LocalTypeChoUsername.current
@@ -162,7 +160,6 @@ fun TopBar(
                                 title = title,
                                 link = link,
                                 content = readerState.content.text,
-                                typeChoWorkerUrl = typeChoWorkerUrl,
                                 typeChoEndpoint = typeChoEndpoint,
                                 typeChoHomeUrl = typeChoHomeUrl,
                                 typeChoUsername = typeChoUsername,

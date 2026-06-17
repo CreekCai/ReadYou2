@@ -334,10 +334,8 @@
     <string name="share_settings">Share settings</string>
     <string name="share_settings_desc">Share content and TypeCho publishing</string>
     <string name="share_action">Share action</string>
-    <string name="typecho_worker_url">Worker proxy URL</string>
-    <string name="typecho_worker_url_hint">Cloudflare Worker or compatible proxy endpoint</string>
     <string name="typecho_endpoint">TypeCho XML-RPC endpoint</string>
-    <string name="typecho_endpoint_hint">Exact TypeCho RPC URL, passed to X-Target-URL without changes</string>
+    <string name="typecho_endpoint_hint">Exact TypeCho XML-RPC URL</string>
     <string name="typecho_home_url">TypeCho site URL</string>
     <string name="typecho_username">TypeCho username</string>
     <string name="typecho_password">TypeCho password</string>
