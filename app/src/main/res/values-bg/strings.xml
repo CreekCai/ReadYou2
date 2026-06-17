@@ -159,7 +159,7 @@
     <string name="basic_fonts">Основни шрифтове</string>
     <string name="feeds_page">Страница с емисии</string>
     <string name="flow_page">Страница на потока</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
+    <string name="update_link">https://api.github.com/repos/CreekCai/ReadYou2/releases/latest</string>
     <string name="update">Актуализация</string>
     <string name="preview_feed_name">Reddit</string>
     <string name="horizontal_padding">Хоризонтална подложка</string>

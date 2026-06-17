@@ -112,7 +112,7 @@
     <string name="reading_page">Lässida</string>
     <string name="sponsor">Sponsor</string>
     <string name="open_source_licenses">Öppen källkodslicenser</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
+    <string name="update_link">https://api.github.com/repos/CreekCai/ReadYou2/releases/latest</string>
     <string name="change_log">Ändringslogg</string>
     <string name="update">Uppdatera</string>
     <string name="skip_this_version">Hoppa Över Denna Version</string>

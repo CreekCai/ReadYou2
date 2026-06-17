@@ -136,7 +136,7 @@
     <string name="feeds_page">Página das fontes</string>
     <string name="sponsor">Tornar-se num mecenas</string>
     <string name="open_source_licenses">Licenças de código aberto</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
+    <string name="update_link">https://api.github.com/repos/CreekCai/ReadYou2/releases/latest</string>
     <string name="change_log">Registo de alterações</string>
     <string name="update">Atualizar</string>
     <string name="checking_updates">A verificar atualizações…</string>

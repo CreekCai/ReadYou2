@@ -199,7 +199,7 @@
     <string name="tonal_elevation">Fargelysstyrke</string>
     <string name="display">Skjerm</string>
     <string name="article_date_sticky_header">Festet hode for publiseringsdato (eksperimentelt)</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
+    <string name="update_link">https://api.github.com/repos/CreekCai/ReadYou2/releases/latest</string>
     <string name="update">Installer</string>
     <string name="checking_updates">Ser etter nye versjoner …</string>
     <string name="check_failure">Kunne ikke lete etter nye versjoner</string>

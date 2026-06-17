@@ -51,7 +51,7 @@
     <string name="tonal_elevation">色調</string>
     <string name="basic_fonts">基本フォント</string>
     <string name="open_source_licenses">オープンソースライセンス</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
+    <string name="update_link">https://api.github.com/repos/CreekCai/ReadYou2/releases/latest</string>
     <string name="change_log">変更履歴</string>
     <string name="update">アップデート</string>
     <string name="download_failure">アップデートをダウンロードできませんでした</string>

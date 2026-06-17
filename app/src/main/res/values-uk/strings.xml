@@ -156,7 +156,7 @@
     <string name="reading_page">Сторінка читання</string>
     <string name="sponsor">Спонсор</string>
     <string name="open_source_licenses">Ліцензії з відкритим кодом</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
+    <string name="update_link">https://api.github.com/repos/CreekCai/ReadYou2/releases/latest</string>
     <string name="change_log">Список змін</string>
     <string name="update">Оновлення</string>
     <string name="skip_this_version">Пропустити цю версію</string>

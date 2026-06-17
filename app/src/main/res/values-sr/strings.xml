@@ -198,7 +198,7 @@
     <string name="all_allow_notification_tips">Дозволите свим фидовима у групи „%1$s“ да шаљу обавештења</string>
     <string name="expand_less">Скупи</string>
     <string name="list">Листа</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
+    <string name="update_link">https://api.github.com/repos/CreekCai/ReadYou2/releases/latest</string>
     <string name="all_parse_full_content_tips">Рашчлањивање комплетног садржаја свих чланака у групи „%1$s“</string>
     <string name="search">Претражи</string>
     <string name="delete_group">Избриши групу</string>

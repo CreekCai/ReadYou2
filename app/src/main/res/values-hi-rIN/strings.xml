@@ -131,7 +131,7 @@
     <string name="reading_page">पठन पृष्ठ</string>
     <string name="sponsor">प्रायोजक</string>
     <string name="open_source_licenses">ओपन सोर्स लाइसेंस</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
+    <string name="update_link">https://api.github.com/repos/CreekCai/ReadYou2/releases/latest</string>
     <string name="change_log">बदलाव सूचि </string>
     <string name="update">अपडेट</string>
     <string name="skip_this_version">इस संस्करण को छोडें</string>

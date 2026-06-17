@@ -246,7 +246,7 @@
     <string name="password">Paraula clau</string>
     <string name="connection">Connexió</string>
     <string name="system_default">Sistema</string>
-    <string name="update_link">https://api.github.com/repos/ReadYouApp/ReadYou/releases/latest</string>
+    <string name="update_link">https://api.github.com/repos/CreekCai/ReadYou2/releases/latest</string>
     <string name="preview_article_desc">El Boig és el vuitè i últim volum de la sèrie Senyor dels Misteris escrita per Sípia a la qual li encanta el busseig.</string>
     <string name="alignment">Alineament</string>
     <string name="general">General</string>
