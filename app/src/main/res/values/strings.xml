@@ -420,10 +420,15 @@
     <string name="model">Model</string>
     <string name="ai_summary">AI Summary</string>
     <string name="summarizing">Summarizing…</string>
-    <string name="tts_settings">Text-to-Speech</string>
+    <string name="tts_settings">语音朗读</string>
     <string name="tts_settings_desc">Configure local or Edge TTS playback</string>
     <string name="tts_current_engine">Current engine</string>
     <string name="tts_default_local">Default local TTS</string>
+    <string name="tts_playback_settings">Playback</string>
+    <string name="tts_edge_settings">Edge TTS</string>
+    <string name="tts_actions">Actions</string>
+    <string name="tts_speech_rate">Speech rate</string>
+    <string name="tts_speech_rate_desc">Control the reading speed for local and Edge TTS.</string>
     <string name="tts_invalid_config">Invalid TTS config</string>
     <string name="tts_missing_config">Please enter API URL and voice name</string>
     <string name="tts_config_saved">TTS config saved</string>

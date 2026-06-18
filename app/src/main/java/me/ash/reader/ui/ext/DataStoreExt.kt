@@ -223,6 +223,7 @@ sealed interface PreferencesKey {
         // TTS
         const val ttsConfig = "ttsConfig"
         const val ttsReadAiSummaryOnly = "ttsReadAiSummaryOnly"
+        const val ttsSpeechRate = "ttsSpeechRate"
 
         private val keyList =
             listOf(
@@ -319,6 +320,7 @@ sealed interface PreferencesKey {
                 // TTS
                 StringKey(ttsConfig),
                 BooleanKey(ttsReadAiSummaryOnly),
+                FloatKey(ttsSpeechRate),
             )
 
         val keys = keyList.associateBy { it.name }
@@ -429,6 +431,7 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
         // TTS
         const val ttsConfig = "ttsConfig"
         const val ttsReadAiSummaryOnly = "ttsReadAiSummaryOnly"
+        const val ttsSpeechRate = "ttsSpeechRate"
 
         val keys: MutableMap<String, DataStoreKey<*>> =
             mutableMapOf(
@@ -619,6 +622,8 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
                     DataStoreKey(stringPreferencesKey(ttsConfig), String::class.java),
                 ttsReadAiSummaryOnly to
                     DataStoreKey(booleanPreferencesKey(ttsReadAiSummaryOnly), Boolean::class.java),
+                ttsSpeechRate to
+                    DataStoreKey(floatPreferencesKey(ttsSpeechRate), Float::class.java),
             )
     }
 }

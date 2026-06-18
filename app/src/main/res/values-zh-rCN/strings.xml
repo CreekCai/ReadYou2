@@ -384,10 +384,15 @@
     <string name="model">模型</string>
     <string name="ai_summary">AI 摘要</string>
     <string name="summarizing">正在生成摘要…</string>
-    <string name="tts_settings">Text-to-Speech</string>
+    <string name="tts_settings">语音朗读</string>
     <string name="tts_settings_desc">配置本地或 Edge TTS 朗读</string>
     <string name="tts_current_engine">当前引擎</string>
     <string name="tts_default_local">默认本地 TTS</string>
+    <string name="tts_playback_settings">播放设置</string>
+    <string name="tts_edge_settings">Edge TTS</string>
+    <string name="tts_actions">操作</string>
+    <string name="tts_speech_rate">朗读语速</string>
+    <string name="tts_speech_rate_desc">控制本地和 Edge TTS 的朗读速度。</string>
     <string name="tts_invalid_config">TTS 配置无效</string>
     <string name="tts_missing_config">请输入 API URL 和语音名称</string>
     <string name="tts_config_saved">TTS 配置已保存</string>

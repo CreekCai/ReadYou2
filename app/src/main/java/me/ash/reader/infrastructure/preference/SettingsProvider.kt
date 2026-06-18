@@ -163,6 +163,7 @@ class SettingsProvider @Inject constructor(
             // TTS
             LocalTtsConfig provides settings.ttsConfig,
             LocalTtsReadAiSummaryOnly provides settings.ttsReadAiSummaryOnly,
+            LocalTtsSpeechRate provides settings.ttsSpeechRate,
         ) {
             content()
         }

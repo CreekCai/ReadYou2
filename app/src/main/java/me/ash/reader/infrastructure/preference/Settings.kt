@@ -105,4 +105,5 @@ data class Settings(
     // TTS
     val ttsConfig: String = TtsConfigPreference.default,
     val ttsReadAiSummaryOnly: Boolean = TtsReadAiSummaryOnlyPreference.default,
+    val ttsSpeechRate: Float = TtsSpeechRatePreference.default,
 )

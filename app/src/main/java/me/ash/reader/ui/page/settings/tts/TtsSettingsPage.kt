@@ -3,7 +3,9 @@ package me.ash.reader.ui.page.settings.tts
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +16,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
@@ -24,22 +27,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.ash.reader.R
 import me.ash.reader.infrastructure.preference.LocalTtsConfig
 import me.ash.reader.infrastructure.preference.LocalTtsReadAiSummaryOnly
+import me.ash.reader.infrastructure.preference.LocalTtsSpeechRate
 import me.ash.reader.infrastructure.preference.TtsConfigPreference
 import me.ash.reader.infrastructure.preference.TtsReadAiSummaryOnlyPreference
+import me.ash.reader.infrastructure.preference.TtsSpeechRatePreference
 import me.ash.reader.ui.component.base.DisplayText
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.component.base.RYScaffold
 import me.ash.reader.ui.component.base.RYSwitch
+import me.ash.reader.ui.component.base.Subtitle
 import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.page.settings.SettingItem
 import org.json.JSONObject
 import java.net.URLEncoder
+import java.util.Locale
 
 @Composable
 fun TtsSettingsPage(
@@ -49,20 +57,24 @@ fun TtsSettingsPage(
     val scope = rememberCoroutineScope()
     val ttsConfig = LocalTtsConfig.current
     val readAiSummaryOnly = LocalTtsReadAiSummaryOnly.current
+    val speechRate = LocalTtsSpeechRate.current
     val parsedForm = remember(ttsConfig) { parseEdgeTtsForm(ttsConfig) }
+    val defaultLocalName = stringResource(R.string.tts_default_local)
+    val invalidConfigName = stringResource(R.string.tts_invalid_config)
     var apiUrl by remember(parsedForm.apiUrl) { mutableStateOf(parsedForm.apiUrl) }
     var token by remember(parsedForm.token) { mutableStateOf(parsedForm.token) }
     var voiceName by remember(parsedForm.voiceName) { mutableStateOf(parsedForm.voiceName) }
-    var configName by remember(ttsConfig) {
+    var speechRateValue by remember(speechRate) { mutableStateOf(speechRate) }
+    var configName by remember(ttsConfig, defaultLocalName, invalidConfigName) {
         mutableStateOf(
             try {
                 if (ttsConfig.isNotBlank()) {
                     JSONObject(ttsConfig).optString("name", "Unknown Config")
                 } else {
-                    "Default Local TTS"
+                    defaultLocalName
                 }
             } catch (e: Exception) {
-                "Invalid Config"
+                invalidConfigName
             }
         )
     }
@@ -100,6 +112,13 @@ fun TtsSettingsPage(
                 }
 
                 item {
+                    Subtitle(
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        text = stringResource(R.string.tts_playback_settings),
+                    )
+                }
+
+                item {
                     SettingItem(
                         title = stringResource(R.string.tts_read_ai_summary_only),
                         desc = stringResource(R.string.tts_read_ai_summary_only_desc),
@@ -126,7 +145,55 @@ fun TtsSettingsPage(
                 }
 
                 item {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.tts_speech_rate),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = speechRateValue.toRateText(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.tts_speech_rate_desc),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Slider(
+                            value = speechRateValue,
+                            onValueChange = {
+                                speechRateValue = it
+                            },
+                            onValueChangeFinished = {
+                                TtsSpeechRatePreference.put(context, scope, speechRateValue)
+                            },
+                            valueRange = TtsSpeechRatePreference.min..TtsSpeechRatePreference.max,
+                            steps = 14,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Subtitle(
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        text = stringResource(R.string.tts_edge_settings),
+                    )
+                }
+
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
                         OutlinedTextField(
                             value = apiUrl,
                             onValueChange = { apiUrl = it },
@@ -194,7 +261,19 @@ fun TtsSettingsPage(
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
 
+                item {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Subtitle(
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        text = stringResource(R.string.tts_actions),
+                    )
+                }
+
+                item {
+                    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
                         Button(
                             onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -215,7 +294,8 @@ fun TtsSettingsPage(
                                         context.showToast(context.getString(R.string.tts_invalid_config))
                                     }
                                 }
-                            }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(stringResource(R.string.tts_import_clipboard))
                         }
@@ -235,6 +315,10 @@ fun TtsSettingsPage(
                             Text(stringResource(R.string.tts_reset_local))
                         }
                     }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -309,3 +393,6 @@ private fun buildEdgeTtsUrlTemplate(
 }
 
 private fun String.urlEncode(): String = URLEncoder.encode(this, "UTF-8")
+
+private fun Float.toRateText(): String =
+    String.format(Locale.US, "%.1fx", this)

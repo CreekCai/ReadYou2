@@ -112,5 +112,6 @@ fun Preferences.toSettings(): Settings {
         // TTS
         ttsConfig = TtsConfigPreference.fromPreferences(this),
         ttsReadAiSummaryOnly = TtsReadAiSummaryOnlyPreference.fromPreferences(this),
+        ttsSpeechRate = TtsSpeechRatePreference.fromPreferences(this),
     )
 }

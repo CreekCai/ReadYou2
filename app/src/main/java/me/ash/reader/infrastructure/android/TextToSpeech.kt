@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.preference.SettingsProvider
+import me.ash.reader.infrastructure.preference.TtsSpeechRatePreference
 import org.json.JSONObject
 import timber.log.Timber
 import java.net.URLEncoder
@@ -273,6 +274,8 @@ class TextToSpeechManager @Inject constructor(
             }
         })
 
+        localTts.setSpeechRate(settingsProvider.settings.ttsSpeechRate.coerceSpeechRate())
+
         segments.forEachIndexed { index, segment ->
             if (segment.length < TextToSpeech.getMaxSpeechInputLength()) {
                 val params = android.os.Bundle()
@@ -310,10 +313,10 @@ class TextToSpeechManager @Inject constructor(
             return
         }
 
-        val speakSpeed = 10f 
+        val speechRate = settingsProvider.settings.ttsSpeechRate.coerceSpeechRate()
 
         try {
-            val url = generateNetworkUrl(text, speakSpeed)
+            val url = generateNetworkUrl(text, speechRate)
             if (url == null) {
                 Timber.e("Generated URL is null for segment: $text")
                 playNextSegmentNetwork(segments, index + 1)
@@ -335,11 +338,10 @@ class TextToSpeechManager @Inject constructor(
         }
     }
 
-    private fun generateNetworkUrl(speakText: String, speakSpeed: Float): String? {
+    private fun generateNetworkUrl(speakText: String, speechRate: Float): String? {
         if (ttsUrlTemplate.isEmpty()) return null
         
-        val rate = speakSpeed / 10f
-        var finalUrl = ttsUrlTemplate.replace("{{speakSpeed/10}}", rate.toString())
+        var finalUrl = ttsUrlTemplate.replace("{{speakSpeed/10}}", speechRate.toString())
 
         val escapedText = speakText
             .replace("&", "&amp;")
@@ -354,6 +356,9 @@ class TextToSpeechManager @Inject constructor(
         
         return finalUrl.replace(textTemplateRegex, urlEncodedText)
     }
+
+    private fun Float.coerceSpeechRate(): Float =
+        coerceIn(TtsSpeechRatePreference.min, TtsSpeechRatePreference.max)
 
     private fun playAudioStream(url: String, onCompletion: () -> Unit, onError: () -> Unit) {
         stopMediaPlayer()
