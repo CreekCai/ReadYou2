@@ -81,11 +81,18 @@ constructor(
     private val _summarizationState = MutableStateFlow<SummarizationState>(SummarizationState.Idle)
     val summarizationState: StateFlow<SummarizationState> = _summarizationState.asStateFlow()
 
+    private val _isSummaryVisible = MutableStateFlow(true)
+    val isSummaryVisible: StateFlow<Boolean> = _isSummaryVisible.asStateFlow()
+
     private val _insightState = MutableStateFlow<InsightState>(InsightState.Idle)
     val insightState: StateFlow<InsightState> = _insightState.asStateFlow()
 
     fun summarizeArticle() {
         if (_summarizationState.value is SummarizationState.Loading) {
+            return
+        }
+        if (_summarizationState.value is SummarizationState.Success) {
+            _isSummaryVisible.update { !it }
             return
         }
 
@@ -97,6 +104,7 @@ constructor(
         }
         
         viewModelScope.launch {
+            _isSummaryVisible.value = true
             _summarizationState.value = SummarizationState.Loading
             articleAiContentDao.upsert(
                 ArticleAiContent(
@@ -164,11 +172,6 @@ constructor(
         }
 
         val articleId = readerStateStateFlow.value.articleId ?: return
-        val currentText = readerStateStateFlow.value.content.text
-        if (currentText.isNullOrBlank()) {
-            _insightState.value = InsightState.Error("No content for insight")
-            return
-        }
 
         viewModelScope.launch {
             _insightState.value = InsightState.Loading
@@ -188,6 +191,7 @@ constructor(
 
     fun clearSummarizationState() {
         _summarizationState.value = SummarizationState.Idle
+        _isSummaryVisible.value = true
     }
 
     fun clearInsightState() {
@@ -402,6 +406,7 @@ constructor(
         viewModelScope.launch {
             aiContentJob?.cancel()
             _summarizationState.value = SummarizationState.Idle
+            _isSummaryVisible.value = true
             _insightState.value = InsightState.Idle
             observeAiContent(articleId)
 

@@ -93,6 +93,7 @@ fun ReadingPage(
     onLoadArticle: (String, Int) -> Unit,
     onNavAction: (NavigationAction) -> Unit,
     onNavigateToStylePage: () -> Unit,
+    onNavigateToInsight: () -> Unit,
 ) {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
@@ -105,6 +106,7 @@ fun ReadingPage(
     val ttsReadAiSummaryOnly = LocalTtsReadAiSummaryOnly.current
     
     val summarizationState = viewModel.summarizationState.collectAsStateValue()
+    val isSummaryVisible = viewModel.isSummaryVisible.collectAsStateValue()
     val insightState = viewModel.insightState.collectAsStateValue()
     val ttsContent =
         if (ttsReadAiSummaryOnly && summarizationState is SummarizationState.Success) {
@@ -306,7 +308,7 @@ fun ReadingPage(
                                                 showFullScreenImageViewer = true
                                             },
                                             summarizationState = summarizationState,
-                                            insightState = insightState,
+                                            isSummaryVisible = isSummaryVisible,
                                         )
                                         PullToLoadIndicator(
                                             state = state,
@@ -377,7 +379,7 @@ fun ReadingPage(
                             )
                         },
                         onSummarize = { viewModel.summarizeArticle() },
-                        onInsight = { viewModel.generateInsight() }
+                        onInsight = onNavigateToInsight
                     )
                 }
             }

@@ -39,7 +39,6 @@ import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.component.webview.RYWebView
 import me.ash.reader.ui.ext.extractDomain
 import me.ash.reader.ui.ext.roundClick
-import me.ash.reader.ui.page.adaptive.InsightState
 import me.ash.reader.ui.page.adaptive.SummarizationState
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -58,7 +57,7 @@ fun Content(
     contentPadding: PaddingValues = PaddingValues(),
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     summarizationState: SummarizationState = SummarizationState.Idle,
-    insightState: InsightState = InsightState.Idle,
+    isSummaryVisible: Boolean = true,
 ) {
     val context = LocalContext.current
     val subheadUpperCase = LocalReadingSubheadUpperCase.current
@@ -83,23 +82,15 @@ fun Content(
             }
         }
         
-    val simpleAiCards =
+    val simpleSummary =
         @Composable {
             AiContentCard(
                 modifier = Modifier.then(maxWidthModifier),
                 title = "AI Summary",
-                visible = summarizationState !is SummarizationState.Idle,
+                visible = isSummaryVisible && summarizationState !is SummarizationState.Idle,
                 loading = summarizationState is SummarizationState.Loading,
                 content = (summarizationState as? SummarizationState.Success)?.summary,
                 error = (summarizationState as? SummarizationState.Error)?.message,
-            )
-            AiContentCard(
-                modifier = Modifier.then(maxWidthModifier),
-                title = "AI Insight",
-                visible = insightState !is InsightState.Idle,
-                loading = insightState is InsightState.Loading,
-                content = (insightState as? InsightState.Success)?.insight,
-                error = (insightState as? InsightState.Error)?.message,
             )
         }
 
@@ -126,7 +117,7 @@ fun Content(
                             // padding
                             headline()
                             
-                            simpleAiCards()
+                            simpleSummary()
 
                             RYWebView(
                                 modifier = Modifier.fillMaxSize(),
@@ -159,7 +150,7 @@ fun Content(
                         }
                         
                         // AI summary and insight cards
-                        if (summarizationState !is SummarizationState.Idle) {
+                        if (isSummaryVisible && summarizationState !is SummarizationState.Idle) {
                              item {
                                 Surface(
                                     modifier = Modifier
@@ -205,34 +196,6 @@ fun Content(
                                     onLinkClick = { uriHandler.openUri(it) }
                                 )
                                 
-                                item {
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                }
-                            }
-                        }
-
-                        if (insightState !is InsightState.Idle) {
-                            item {
-                                AiContentCard(
-                                    modifier = Modifier.then(maxWidthModifier),
-                                    title = "AI Insight",
-                                    visible = true,
-                                    loading = insightState is InsightState.Loading,
-                                    content = null,
-                                    error = (insightState as? InsightState.Error)?.message,
-                                )
-                            }
-
-                            if (insightState is InsightState.Success) {
-                                Reader(
-                                    context = context,
-                                    subheadUpperCase = false,
-                                    link = "",
-                                    content = (insightState as InsightState.Success).insight,
-                                    onImageClick = null,
-                                    onLinkClick = { uriHandler.openUri(it) },
-                                )
-
                                 item {
                                     Spacer(modifier = Modifier.height(16.dp))
                                 }
