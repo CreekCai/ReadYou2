@@ -60,11 +60,9 @@ import me.ash.reader.ui.page.home.reading.tts.TtsButton
 
 import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import me.ash.reader.ui.component.base.RYDialog
 import me.ash.reader.ui.page.adaptive.SummarizationState
 import me.ash.reader.ui.page.adaptive.InsightState
 import me.ash.reader.infrastructure.preference.LocalSharedContent
@@ -308,6 +306,7 @@ fun ReadingPage(
                                                 showFullScreenImageViewer = true
                                             },
                                             summarizationState = summarizationState,
+                                            insightState = insightState,
                                         )
                                         PullToLoadIndicator(
                                             state = state,
@@ -331,7 +330,7 @@ fun ReadingPage(
                                 readerState.content is ReaderState.Error,
                         isBoldCharacters = boldCharacters.value,
                         isSummarized = summarizationState !is SummarizationState.Idle,
-                        isInsightShown = insightState is InsightState.Success,
+                        isInsightShown = insightState !is InsightState.Idle,
                         onUnread = { viewModel.updateReadStatus(it) },
                         onStarred = { viewModel.updateStarredStatus(it) },
                         onNextArticle = {
@@ -403,21 +402,4 @@ fun ReadingPage(
         )
     }
 
-    // Removed the Loading dialog for InsightState.Loading since it's now handled by the generic LoadingIndicator via ReaderState.Loading
-    // Removed the Error dialog for InsightState.Error as well since ReaderState.Error will handle it or we can handle it here but the request was to treat it like FullContent loading.
-    
-    if (insightState is InsightState.Error) {
-        val errorState = insightState as InsightState.Error
-        RYDialog(
-            visible = true,
-            title = { Text("Error") },
-            text = { Text(errorState.message) },
-            onDismissRequest = { viewModel.clearInsightState() },
-            confirmButton = {
-                 TextButton(onClick = { viewModel.clearInsightState() }) {
-                    Text(stringResource(R.string.close))
-                }
-            }
-        )
-    }
 }

@@ -39,6 +39,7 @@ import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.component.webview.RYWebView
 import me.ash.reader.ui.ext.extractDomain
 import me.ash.reader.ui.ext.roundClick
+import me.ash.reader.ui.page.adaptive.InsightState
 import me.ash.reader.ui.page.adaptive.SummarizationState
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -57,6 +58,7 @@ fun Content(
     contentPadding: PaddingValues = PaddingValues(),
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     summarizationState: SummarizationState = SummarizationState.Idle,
+    insightState: InsightState = InsightState.Idle,
 ) {
     val context = LocalContext.current
     val subheadUpperCase = LocalReadingSubheadUpperCase.current
@@ -81,45 +83,24 @@ fun Content(
             }
         }
         
-    // A simplified summary composable for non-LazyListScope (WebView mode)
-    val simpleSummary = 
+    val simpleAiCards =
         @Composable {
-            AnimatedVisibility(visible = summarizationState !is SummarizationState.Idle) {
-                Surface(
-                    modifier = Modifier
-                        .then(maxWidthModifier)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    tonalElevation = 2.dp
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "AI Summary",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        when (summarizationState) {
-                            is SummarizationState.Loading -> LoadingIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally))
-                            is SummarizationState.Success -> {
-                                Text(
-                                    text = summarizationState.summary, // Raw text (HTML) for now in WebView mode
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            is SummarizationState.Error -> Text(
-                                text = summarizationState.message,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            else -> {}
-                        }
-                    }
-                }
-            }
+            AiContentCard(
+                modifier = Modifier.then(maxWidthModifier),
+                title = "AI Summary",
+                visible = summarizationState !is SummarizationState.Idle,
+                loading = summarizationState is SummarizationState.Loading,
+                content = (summarizationState as? SummarizationState.Success)?.summary,
+                error = (summarizationState as? SummarizationState.Error)?.message,
+            )
+            AiContentCard(
+                modifier = Modifier.then(maxWidthModifier),
+                title = "AI Insight",
+                visible = insightState !is InsightState.Idle,
+                loading = insightState is InsightState.Loading,
+                content = (insightState as? InsightState.Success)?.insight,
+                error = (insightState as? InsightState.Error)?.message,
+            )
         }
 
     if (isLoading) {
@@ -145,7 +126,7 @@ fun Content(
                             // padding
                             headline()
                             
-                            simpleSummary()
+                            simpleAiCards()
 
                             RYWebView(
                                 modifier = Modifier.fillMaxSize(),
@@ -177,7 +158,7 @@ fun Content(
                             headline()
                         }
                         
-                        // Summary Item
+                        // AI summary and insight cards
                         if (summarizationState !is SummarizationState.Idle) {
                              item {
                                 Surface(
@@ -230,6 +211,34 @@ fun Content(
                             }
                         }
 
+                        if (insightState !is InsightState.Idle) {
+                            item {
+                                AiContentCard(
+                                    modifier = Modifier.then(maxWidthModifier),
+                                    title = "AI Insight",
+                                    visible = true,
+                                    loading = insightState is InsightState.Loading,
+                                    content = null,
+                                    error = (insightState as? InsightState.Error)?.message,
+                                )
+                            }
+
+                            if (insightState is InsightState.Success) {
+                                Reader(
+                                    context = context,
+                                    subheadUpperCase = false,
+                                    link = "",
+                                    content = (insightState as InsightState.Success).insight,
+                                    onImageClick = null,
+                                    onLinkClick = { uriHandler.openUri(it) },
+                                )
+
+                                item {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                            }
+                        }
+
                         Reader(
                             context = context,
                             subheadUpperCase = subheadUpperCase.value,
@@ -246,6 +255,53 @@ fun Content(
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AiContentCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    visible: Boolean,
+    loading: Boolean,
+    content: String?,
+    error: String?,
+) {
+    AnimatedVisibility(visible = visible) {
+        Surface(
+            modifier =
+                modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 2.dp,
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                when {
+                    loading -> LoadingIndicator(
+                        modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally)
+                    )
+                    error != null -> Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    content != null -> Text(
+                        text = content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Date
 import javax.inject.Inject
 import kotlin.collections.any
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
@@ -31,10 +32,13 @@ import me.ash.reader.domain.data.FilterStateUseCase
 import me.ash.reader.domain.data.GroupWithFeedsListUseCase
 import me.ash.reader.domain.data.PagerData
 import me.ash.reader.domain.model.article.Article
+import me.ash.reader.domain.model.article.ArticleAiContent
 import me.ash.reader.domain.model.article.ArticleFlowItem
 import me.ash.reader.domain.model.article.ArticleWithFeed
+import me.ash.reader.domain.repository.ArticleAiContentDao
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.general.MarkAsReadConditions
+import me.ash.reader.domain.service.ArticleInsightWorker
 import me.ash.reader.domain.service.GeminiService
 import me.ash.reader.domain.service.GoogleReaderRssService
 import me.ash.reader.domain.service.LocalRssService
@@ -45,6 +49,7 @@ import me.ash.reader.infrastructure.android.TextToSpeechManager
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.infrastructure.preference.GeminiModelPreference
+import me.ash.reader.infrastructure.preference.AiProviderPreference
 import me.ash.reader.infrastructure.preference.PullToLoadNextFeedPreference
 import me.ash.reader.infrastructure.preference.SettingsProvider
 import me.ash.reader.infrastructure.rss.ReaderCacheHelper
@@ -69,7 +74,8 @@ constructor(
     private val imageDownloader: AndroidImageDownloader,
     private val articleListUseCase: ArticlePagingListUseCase,
     private val geminiService: GeminiService,
-    workManager: WorkManager,
+    private val articleAiContentDao: ArticleAiContentDao,
+    private val workManager: WorkManager,
 ) : ViewModel() {
 
     private val _summarizationState = MutableStateFlow<SummarizationState>(SummarizationState.Idle)
@@ -79,11 +85,11 @@ constructor(
     val insightState: StateFlow<InsightState> = _insightState.asStateFlow()
 
     fun summarizeArticle() {
-        if (_summarizationState.value !is SummarizationState.Idle) {
-            clearSummarizationState()
+        if (_summarizationState.value is SummarizationState.Loading) {
             return
         }
 
+        val articleId = readerStateStateFlow.value.articleId ?: return
         val currentText = readerStateStateFlow.value.content.text
         if (currentText.isNullOrBlank()) {
              _summarizationState.value = SummarizationState.Error("No content to summarize")
@@ -92,11 +98,44 @@ constructor(
         
         viewModelScope.launch {
             _summarizationState.value = SummarizationState.Loading
+            articleAiContentDao.upsert(
+                ArticleAiContent(
+                    articleId = articleId,
+                    type = ArticleAiContent.Type.SUMMARY,
+                    status = ArticleAiContent.Status.RUNNING,
+                    model = settingsProvider.settings.currentSummaryModel(),
+                    prompt = settingsProvider.settings.geminiPrompt,
+                    updatedAt = Date(),
+                )
+            )
             try {
                 val summary = geminiService.summarize(currentText)
+                articleAiContentDao.upsert(
+                    ArticleAiContent(
+                        articleId = articleId,
+                        type = ArticleAiContent.Type.SUMMARY,
+                        status = ArticleAiContent.Status.SUCCESS,
+                        content = summary,
+                        model = settingsProvider.settings.currentSummaryModel(),
+                        prompt = settingsProvider.settings.geminiPrompt,
+                        updatedAt = Date(),
+                    )
+                )
                 _summarizationState.value = SummarizationState.Success(summary)
             } catch (e: Exception) {
-                _summarizationState.value = SummarizationState.Error(e.message ?: "Unknown error")
+                val message = e.message ?: "Unknown error"
+                articleAiContentDao.upsert(
+                    ArticleAiContent(
+                        articleId = articleId,
+                        type = ArticleAiContent.Type.SUMMARY,
+                        status = ArticleAiContent.Status.FAILED,
+                        errorMessage = message,
+                        model = settingsProvider.settings.currentSummaryModel(),
+                        prompt = settingsProvider.settings.geminiPrompt,
+                        updatedAt = Date(),
+                    )
+                )
+                _summarizationState.value = SummarizationState.Error(message)
             }
         }
     }
@@ -119,39 +158,31 @@ constructor(
         }
     }
 
-    // Stores the original content before Insight is shown
-    private var originalContentBeforeInsight: ReaderState.ContentState? = null
-
     fun generateInsight() {
-        // Toggle off if already showing insight
-        if (_insightState.value is InsightState.Success) {
-            clearInsightState()
+        if (_insightState.value is InsightState.Loading) {
             return
         }
 
+        val articleId = readerStateStateFlow.value.articleId ?: return
         val currentText = readerStateStateFlow.value.content.text
         if (currentText.isNullOrBlank()) {
             _insightState.value = InsightState.Error("No content for insight")
             return
         }
 
-        // Store original content to restore later
-        originalContentBeforeInsight = readerStateStateFlow.value.content
-
         viewModelScope.launch {
-            // Set loading state both in insightState and readerState to show LoadingIndicator
             _insightState.value = InsightState.Loading
-            _readerState.update { it.copy(content = ReaderState.Loading) }
-            
-            try {
-                val insight = geminiService.generateInsight(currentText)
-                _insightState.value = InsightState.Success(insight)
-                _readerState.update { it.copy(content = ReaderState.FullContent(insight)) }
-            } catch (e: Exception) {
-                _insightState.value = InsightState.Error(e.message ?: "Unknown error")
-                // Restore original content on error or show error
-                _readerState.update { it.copy(content = ReaderState.Error(e.message ?: "Unknown error")) }
-            }
+            articleAiContentDao.upsert(
+                ArticleAiContent(
+                    articleId = articleId,
+                    type = ArticleAiContent.Type.INSIGHT,
+                    status = ArticleAiContent.Status.RUNNING,
+                    model = settingsProvider.settings.currentInsightModel(),
+                    prompt = settingsProvider.settings.geminiInsightPrompt,
+                    updatedAt = Date(),
+                )
+            )
+            ArticleInsightWorker.enqueue(workManager, articleId)
         }
     }
 
@@ -161,11 +192,6 @@ constructor(
 
     fun clearInsightState() {
         _insightState.value = InsightState.Idle
-        // Restore original content if available
-        originalContentBeforeInsight?.let { original ->
-            _readerState.update { it.copy(content = original) }
-        }
-        originalContentBeforeInsight = null
     }
 
     val flowUiState: StateFlow<FlowUiState?> =
@@ -370,12 +396,14 @@ constructor(
     private val currentFeed: Feed?
         get() = readingUiState.value.articleWithFeed?.feed
 
+    private var aiContentJob: Job? = null
+
     fun initData(articleId: String, listIndex: Int? = null) {
         viewModelScope.launch {
-            clearSummarizationState()
-            // Clear insight and reset original content reference
+            aiContentJob?.cancel()
+            _summarizationState.value = SummarizationState.Idle
             _insightState.value = InsightState.Idle
-            originalContentBeforeInsight = null
+            observeAiContent(articleId)
 
             val snapshotList = articleListUseCase.itemSnapshotList
 
@@ -421,6 +449,8 @@ constructor(
     }
 
     fun clearReadingData() {
+        aiContentJob?.cancel()
+        aiContentJob = null
         _readingUiState.update { ReadingUiState() }
         _readerState.update { ReaderState() }
         clearSummarizationState()
@@ -496,6 +526,20 @@ constructor(
         _readerState.update { it.copy(content = ReaderState.Loading) }
     }
 
+    private fun observeAiContent(articleId: String) {
+        aiContentJob =
+            viewModelScope.launch {
+                combine(
+                    articleAiContentDao.observe(articleId, ArticleAiContent.Type.SUMMARY),
+                    articleAiContentDao.observe(articleId, ArticleAiContent.Type.INSIGHT),
+                ) { summary, insight -> summary to insight }
+                    .collect { (summary, insight) ->
+                        _summarizationState.value = summary.toSummarizationState()
+                        _insightState.value = insight.toInsightState()
+                    }
+            }
+    }
+
     fun ReaderState.prefetchArticleId(): ReaderState {
         val items = articleListUseCase.itemSnapshotList
         val currentId = currentArticle?.id
@@ -565,6 +609,36 @@ sealed class InsightState {
     data class Success(val insight: String) : InsightState()
     data class Error(val message: String) : InsightState()
 }
+
+private fun ArticleAiContent?.toSummarizationState(): SummarizationState =
+    when (this?.status) {
+        ArticleAiContent.Status.RUNNING -> SummarizationState.Loading
+        ArticleAiContent.Status.SUCCESS -> content?.let { SummarizationState.Success(it) }
+            ?: SummarizationState.Idle
+        ArticleAiContent.Status.FAILED -> SummarizationState.Error(errorMessage ?: "Unknown error")
+        else -> SummarizationState.Idle
+    }
+
+private fun ArticleAiContent?.toInsightState(): InsightState =
+    when (this?.status) {
+        ArticleAiContent.Status.RUNNING -> InsightState.Loading
+        ArticleAiContent.Status.SUCCESS -> content?.let { InsightState.Success(it) }
+            ?: InsightState.Idle
+        ArticleAiContent.Status.FAILED -> InsightState.Error(errorMessage ?: "Unknown error")
+        else -> InsightState.Idle
+    }
+
+private fun me.ash.reader.infrastructure.preference.Settings.currentSummaryModel(): String =
+    when (aiProvider) {
+        AiProviderPreference.OpenAI -> codexModel
+        else -> geminiModel
+    }
+
+private fun me.ash.reader.infrastructure.preference.Settings.currentInsightModel(): String =
+    when (aiProvider) {
+        AiProviderPreference.OpenAI -> codexInsightModel
+        else -> geminiInsightModel
+    }
 
 data class FlowUiState(val pagerData: PagerData, val nextFilterState: FilterState? = null)
 

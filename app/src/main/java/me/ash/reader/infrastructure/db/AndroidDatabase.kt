@@ -8,9 +8,11 @@ import me.ash.reader.domain.model.account.*
 import me.ash.reader.domain.model.account.security.DESUtils
 import me.ash.reader.domain.model.article.ArchivedArticle
 import me.ash.reader.domain.model.article.Article
+import me.ash.reader.domain.model.article.ArticleAiContent
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
 import me.ash.reader.domain.repository.AccountDao
+import me.ash.reader.domain.repository.ArticleAiContentDao
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
@@ -19,8 +21,15 @@ import me.ash.reader.ui.ext.toInt
 import java.util.*
 
 @Database(
-    entities = [Account::class, Feed::class, Article::class, Group::class, ArchivedArticle::class],
-    version = 7,
+    entities = [
+        Account::class,
+        Feed::class,
+        Article::class,
+        Group::class,
+        ArchivedArticle::class,
+        ArticleAiContent::class,
+    ],
+    version = 8,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 5, to = 7),
@@ -42,6 +51,7 @@ abstract class AndroidDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
     abstract fun feedDao(): FeedDao
     abstract fun articleDao(): ArticleDao
+    abstract fun articleAiContentDao(): ArticleAiContentDao
     abstract fun groupDao(): GroupDao
 
     companion object {
@@ -80,6 +90,7 @@ val allMigrations = arrayOf(
     MIGRATION_2_3,
     MIGRATION_3_4,
     MIGRATION_4_5,
+    MIGRATION_7_8,
 )
 
 @Suppress("ClassName")
@@ -155,6 +166,36 @@ object MIGRATION_4_5 : Migration(4, 5) {
         database.execSQL(
             """
             ALTER TABLE account ADD COLUMN lastArticleId TEXT DEFAULT NULL
+            """.trimIndent()
+        )
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_7_8 : Migration(7, 8) {
+
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS article_ai_content (
+                articleId TEXT NOT NULL,
+                type TEXT NOT NULL,
+                status INTEGER NOT NULL,
+                content TEXT DEFAULT NULL,
+                model TEXT DEFAULT NULL,
+                prompt TEXT DEFAULT NULL,
+                errorMessage TEXT DEFAULT NULL,
+                updatedAt INTEGER NOT NULL,
+                PRIMARY KEY(articleId, type),
+                FOREIGN KEY(articleId) REFERENCES article(id)
+                ON UPDATE CASCADE ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            CREATE INDEX IF NOT EXISTS index_article_ai_content_articleId
+            ON article_ai_content(articleId)
             """.trimIndent()
         )
     }
