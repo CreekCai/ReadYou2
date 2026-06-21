@@ -30,4 +30,13 @@ interface ArticleAiContentDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(content: ArticleAiContent)
+
+    @Query(
+        """
+        DELETE FROM article_ai_content
+        WHERE articleId = :articleId
+        AND type = :type
+        """
+    )
+    suspend fun delete(articleId: String, type: String)
 }

@@ -379,7 +379,9 @@ fun ReadingPage(
                             )
                         },
                         onSummarize = { viewModel.summarizeArticle() },
-                        onInsight = onNavigateToInsight
+                        onClearSummary = { viewModel.clearSummarizationState() },
+                        onInsight = onNavigateToInsight,
+                        onClearInsight = { viewModel.clearInsightState() },
                     )
                 }
             }

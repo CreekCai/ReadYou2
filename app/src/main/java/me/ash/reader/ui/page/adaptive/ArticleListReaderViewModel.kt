@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Date
 import javax.inject.Inject
 import kotlin.collections.any
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -87,6 +88,8 @@ constructor(
     private val _insightState = MutableStateFlow<InsightState>(InsightState.Idle)
     val insightState: StateFlow<InsightState> = _insightState.asStateFlow()
 
+    private var summaryJob: Job? = null
+
     fun summarizeArticle() {
         if (_summarizationState.value is SummarizationState.Loading) {
             return
@@ -103,7 +106,8 @@ constructor(
             return
         }
         
-        viewModelScope.launch {
+        summaryJob?.cancel()
+        summaryJob = viewModelScope.launch {
             _isSummaryVisible.value = true
             _summarizationState.value = SummarizationState.Loading
             articleAiContentDao.upsert(
@@ -131,6 +135,7 @@ constructor(
                 )
                 _summarizationState.value = SummarizationState.Success(summary)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 val message = e.message ?: "Unknown error"
                 articleAiContentDao.upsert(
                     ArticleAiContent(
@@ -190,12 +195,29 @@ constructor(
     }
 
     fun clearSummarizationState() {
+        val articleId = readerStateStateFlow.value.articleId
+        summaryJob?.cancel()
+        summaryJob = null
         _summarizationState.value = SummarizationState.Idle
         _isSummaryVisible.value = true
+        if (articleId != null) {
+            viewModelScope.launch {
+                articleAiContentDao.delete(articleId, ArticleAiContent.Type.SUMMARY)
+            }
+        }
     }
 
     fun clearInsightState() {
+        val articleId = readerStateStateFlow.value.articleId
+        if (articleId != null) {
+            ArticleInsightWorker.cancel(workManager, articleId)
+        }
         _insightState.value = InsightState.Idle
+        if (articleId != null) {
+            viewModelScope.launch {
+                articleAiContentDao.delete(articleId, ArticleAiContent.Type.INSIGHT)
+            }
+        }
     }
 
     val flowUiState: StateFlow<FlowUiState?> =

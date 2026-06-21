@@ -117,6 +117,10 @@ constructor(
                 request,
             )
         }
+
+        fun cancel(workManager: WorkManager, articleId: String) {
+            workManager.cancelUniqueWork(WORK_NAME_PREFIX + articleId)
+        }
     }
 }
 

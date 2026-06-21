@@ -66,7 +66,9 @@ fun BottomBar(
     onBoldCharacters: () -> Unit = {},
     onReadAloud: () -> Unit = {},
     onSummarize: () -> Unit = {},
+    onClearSummary: () -> Unit = {},
     onInsight: () -> Unit = {},
+    onClearInsight: () -> Unit = {},
 ) {
     val tonalElevation = LocalReadingPageTonalElevation.current
     val isOutlined = tonalElevation == ReadingPageTonalElevationPreference.Outlined
@@ -117,10 +119,15 @@ fun BottomBar(
                             } else {
                                 MaterialTheme.colorScheme.outline
                             },
-                        ) {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            onInsight()
-                        }
+                            onClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onInsight()
+                            },
+                            onLongClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                onClearInsight()
+                            },
+                        )
                         CanBeDisabledIconButton(
                             modifier = Modifier.size(40.dp),
                             disabled = false,
@@ -154,10 +161,15 @@ fun BottomBar(
                             } else {
                                 MaterialTheme.colorScheme.outline
                             },
-                        ) {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            onSummarize()
-                        }
+                            onClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                onSummarize()
+                            },
+                            onLongClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                onClearSummary()
+                            },
+                        )
                         CanBeDisabledIconButton(
                             disabled = false,
                             modifier = Modifier.size(40.dp),
