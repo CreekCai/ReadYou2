@@ -71,6 +71,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import me.ash.reader.R
+import me.ash.reader.infrastructure.preference.LocalGetNoteApiKey
+import me.ash.reader.infrastructure.preference.LocalGetNoteClientId
+import me.ash.reader.infrastructure.preference.LocalGetNoteTopicId
 import me.ash.reader.domain.data.PagerData
 import me.ash.reader.domain.model.article.ArticleFlowItem
 import me.ash.reader.domain.model.article.ArticleWithFeed
@@ -139,6 +142,9 @@ fun FlowPage(
     val typeChoHomeUrl = LocalTypeChoHomeUrl.current
     val typeChoUsername = LocalTypeChoUsername.current
     val typeChoPassword = LocalTypeChoPassword.current
+    val getNoteApiKey = LocalGetNoteApiKey.current
+    val getNoteClientId = LocalGetNoteClientId.current
+    val getNoteTopicId = LocalGetNoteTopicId.current
     val markAsReadOnScroll = LocalMarkAsReadOnScroll.current.value
     val context = LocalContext.current
 
@@ -228,6 +234,9 @@ fun FlowPage(
             typeChoHomeUrl,
             typeChoUsername,
             typeChoPassword,
+            getNoteApiKey,
+            getNoteClientId,
+            getNoteTopicId,
         ) {
             { articleWithFeed ->
                 with(articleWithFeed.article) {
@@ -240,6 +249,9 @@ fun FlowPage(
                         typeChoHomeUrl = typeChoHomeUrl,
                         typeChoUsername = typeChoUsername,
                         typeChoPassword = typeChoPassword,
+                        getNoteApiKey = getNoteApiKey,
+                        getNoteClientId = getNoteClientId,
+                        getNoteTopicId = getNoteTopicId,
                     )
                 }
             }

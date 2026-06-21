@@ -43,6 +43,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import me.ash.reader.R
+import me.ash.reader.infrastructure.preference.LocalGetNoteApiKey
+import me.ash.reader.infrastructure.preference.LocalGetNoteClientId
+import me.ash.reader.infrastructure.preference.LocalGetNoteTopicId
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.LocalTypeChoEndpoint
@@ -76,6 +79,9 @@ fun TopBar(
     val typeChoHomeUrl = LocalTypeChoHomeUrl.current
     val typeChoUsername = LocalTypeChoUsername.current
     val typeChoPassword = LocalTypeChoPassword.current
+    val getNoteApiKey = LocalGetNoteApiKey.current
+    val getNoteClientId = LocalGetNoteClientId.current
+    val getNoteTopicId = LocalGetNoteTopicId.current
     val isOutlined =
         LocalReadingPageTonalElevation.current == ReadingPageTonalElevationPreference.Outlined
 
@@ -164,6 +170,9 @@ fun TopBar(
                                 typeChoHomeUrl = typeChoHomeUrl,
                                 typeChoUsername = typeChoUsername,
                                 typeChoPassword = typeChoPassword,
+                                getNoteApiKey = getNoteApiKey,
+                                getNoteClientId = getNoteClientId,
+                                getNoteTopicId = getNoteTopicId,
                             )
                         }
                     },

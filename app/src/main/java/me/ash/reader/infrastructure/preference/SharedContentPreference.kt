@@ -9,6 +9,9 @@ import android.widget.Toast
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.datastore.preferences.core.Preferences
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
@@ -29,6 +32,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
     object TitleAndLink : SharedContentPreference(1)
     object FullContent : SharedContentPreference(2)
     object TypeCho : SharedContentPreference(3)
+    object GetNote : SharedContentPreference(4)
 
     override fun put(context: Context, scope: CoroutineScope) {
         scope.launch {
@@ -45,6 +49,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
             TitleAndLink -> context.getString(R.string.title_and_link)
             FullContent -> context.getString(R.string.share_original_content)
             TypeCho -> context.getString(R.string.share_to_typecho)
+            GetNote -> context.getString(R.string.share_to_get_note)
         }
 
     fun share(
@@ -56,6 +61,9 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         typeChoHomeUrl: String = "",
         typeChoUsername: String = "",
         typeChoPassword: String = "",
+        getNoteApiKey: String = "",
+        getNoteClientId: String = "",
+        getNoteTopicId: String = "",
     ) {
         when (this) {
             TitleAndLink -> share(context, title.orNotEmpty { it + "\n" } + link.orEmpty())
@@ -67,6 +75,16 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                     homeUrl = typeChoHomeUrl,
                     username = typeChoUsername,
                     password = typeChoPassword,
+                    title = title.orEmpty(),
+                    link = link.orEmpty(),
+                    content = content.orEmpty(),
+                )
+            GetNote ->
+                uploadToGetNote(
+                    context = context,
+                    apiKey = getNoteApiKey,
+                    clientId = getNoteClientId,
+                    topicId = getNoteTopicId,
                     title = title.orEmpty(),
                     link = link.orEmpty(),
                     content = content.orEmpty(),
@@ -143,6 +161,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
     }
 
     private data class XmlRpcResponse(val code: Int, val body: String)
+    private data class HttpTextResponse(val code: Int, val body: String)
 
     private fun postXmlRpc(endpoint: String, body: String): XmlRpcResponse {
         val payload = body.toByteArray(StandardCharsets.UTF_8)
@@ -160,6 +179,92 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             XmlRpcResponse(code, stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty())
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun uploadToGetNote(
+        context: Context,
+        apiKey: String,
+        clientId: String,
+        topicId: String,
+        title: String,
+        link: String,
+        content: String,
+    ) {
+        if (apiKey.isBlank() || clientId.isBlank()) {
+            toast(context, context.getString(R.string.get_note_missing_config))
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                val body =
+                    Gson().toJson(
+                        buildMap<String, Any> {
+                            put("note_type", "plain_text")
+                            put("title", title.ifBlank { context.getString(R.string.share_to_get_note) })
+                            put(
+                                "content",
+                                buildString {
+                                    append(content.ifBlank { link })
+                                    if (link.isNotBlank()) {
+                                        append("\n\n")
+                                        append(link)
+                                    }
+                                },
+                            )
+                            if (topicId.isNotBlank()) put("topic_id", topicId.trim())
+                        }
+                    )
+                val response = postGetNote(apiKey.trim(), clientId.trim(), body)
+                if (response.code !in 200..299) {
+                    error("HTTP ${response.code}${response.body.shortErrorSuffix()}")
+                }
+                val root = runCatching { JsonParser.parseString(response.body).asJsonObject }.getOrNull()
+                    ?: error("Invalid JSON response")
+                val success = root.get("success")?.takeIf { it.isJsonPrimitive }?.asBoolean
+                if (success == false) {
+                    error(root.getApiErrorMessage().ifBlank { "API returned failure" })
+                }
+                val noteId =
+                    root.getAsJsonObjectOrNull("data")
+                        ?.get("note_id")
+                        ?.takeIf { it.isJsonPrimitive }
+                        ?.asString
+                        .orEmpty()
+                if (noteId.isBlank()) {
+                    error(root.getApiErrorMessage().ifBlank { "Missing note id" })
+                }
+            }.onSuccess {
+                toast(context, context.getString(R.string.get_note_upload_success))
+            }.onFailure {
+                toast(context, context.getString(R.string.get_note_upload_failed, it.message ?: "unknown"))
+            }
+        }
+    }
+
+    private fun postGetNote(apiKey: String, clientId: String, body: String): HttpTextResponse {
+        val payload = body.toByteArray(StandardCharsets.UTF_8)
+        val connection =
+            (URL("https://openapi.biji.com/open/api/v1/resource/note/save").openConnection() as HttpURLConnection)
+                .apply {
+                    connectTimeout = TimeUnit.SECONDS.toMillis(15).toInt()
+                    readTimeout = TimeUnit.SECONDS.toMillis(30).toInt()
+                    requestMethod = "POST"
+                    doOutput = true
+                    setRequestProperty("User-Agent", "ReadYou GetNote Publisher")
+                    setRequestProperty("Authorization", apiKey)
+                    setRequestProperty("X-Client-ID", clientId)
+                    setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                    setFixedLengthStreamingMode(payload.size)
+                }
+        return try {
+            connection.outputStream.use { it.write(payload) }
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            HttpTextResponse(code, stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty())
         } finally {
             connection.disconnect()
         }
@@ -215,6 +320,19 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         return if (text.isBlank()) "" else ": $text"
     }
 
+    private fun JsonObject.getAsJsonObjectOrNull(name: String): JsonObject? =
+        get(name)?.takeIf { it.isJsonObject }?.asJsonObject
+
+    private fun JsonObject.getApiErrorMessage(): String {
+        val error = getAsJsonObjectOrNull("error")
+        return listOfNotNull(
+            get("message")?.takeIf { it.isJsonPrimitive }?.asString,
+            error?.get("message")?.takeIf { it.isJsonPrimitive }?.asString,
+            error?.get("reason")?.takeIf { it.isJsonPrimitive }?.asString,
+            get("code")?.takeIf { it.isJsonPrimitive }?.asString,
+        ).firstOrNull { it.isNotBlank() }.orEmpty()
+    }
+
     private fun String.extractXmlRpcValue(): String =
         Regex("<(?:string|int|i4)>(.*?)</(?:string|int|i4)>", RegexOption.DOT_MATCHES_ALL)
             .find(this)
@@ -260,7 +378,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
     companion object {
 
         val default = TitleAndLink
-        val values = listOf(TitleAndLink, FullContent, TypeCho)
+        val values = listOf(TitleAndLink, FullContent, TypeCho, GetNote)
 
         fun fromPreferences(preferences: Preferences): SharedContentPreference =
             when (preferences[DataStoreKey.keys[sharedContent]?.key as Preferences.Key<Int>]) {
@@ -268,6 +386,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                 1 -> TitleAndLink
                 2 -> FullContent
                 3 -> TypeCho
+                4 -> GetNote
                 else -> default
             }
     }

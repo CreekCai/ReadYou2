@@ -201,6 +201,9 @@ sealed interface PreferencesKey {
         const val typeChoHomeUrl = "typeChoHomeUrl"
         const val typeChoUsername = "typeChoUsername"
         const val typeChoPassword = "typeChoPassword"
+        const val getNoteApiKey = "getNoteApiKey"
+        const val getNoteClientId = "getNoteClientId"
+        const val getNoteTopicId = "getNoteTopicId"
 
         // Languages
         const val languages = "languages"
@@ -301,6 +304,9 @@ sealed interface PreferencesKey {
                 StringKey(typeChoHomeUrl),
                 StringKey(typeChoUsername),
                 StringKey(typeChoPassword),
+                StringKey(getNoteApiKey),
+                StringKey(getNoteClientId),
+                StringKey(getNoteTopicId),
                 // Languages
                 IntKey(languages),
                 // AI
@@ -409,6 +415,9 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
         const val typeChoHomeUrl = "typeChoHomeUrl"
         const val typeChoUsername = "typeChoUsername"
         const val typeChoPassword = "typeChoPassword"
+        const val getNoteApiKey = "getNoteApiKey"
+        const val getNoteClientId = "getNoteClientId"
+        const val getNoteTopicId = "getNoteTopicId"
 
         // Languages
         const val languages = "languages"
@@ -589,6 +598,12 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
                     DataStoreKey(stringPreferencesKey(typeChoUsername), String::class.java),
                 typeChoPassword to
                     DataStoreKey(stringPreferencesKey(typeChoPassword), String::class.java),
+                getNoteApiKey to
+                    DataStoreKey(stringPreferencesKey(getNoteApiKey), String::class.java),
+                getNoteClientId to
+                    DataStoreKey(stringPreferencesKey(getNoteClientId), String::class.java),
+                getNoteTopicId to
+                    DataStoreKey(stringPreferencesKey(getNoteTopicId), String::class.java),
                 // Languages
                 languages to DataStoreKey(intPreferencesKey(languages), Int::class.java),
                 // AI

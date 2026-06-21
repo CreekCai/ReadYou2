@@ -141,6 +141,9 @@ class SettingsProvider @Inject constructor(
             LocalTypeChoHomeUrl provides settings.typeChoHomeUrl,
             LocalTypeChoUsername provides settings.typeChoUsername,
             LocalTypeChoPassword provides settings.typeChoPassword,
+            LocalGetNoteApiKey provides settings.getNoteApiKey,
+            LocalGetNoteClientId provides settings.getNoteClientId,
+            LocalGetNoteTopicId provides settings.getNoteTopicId,
 
             // Languages
             LocalLanguages provides settings.languages,

@@ -29,6 +29,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.ash.reader.R
+import me.ash.reader.infrastructure.preference.GetNoteApiKeyPreference
+import me.ash.reader.infrastructure.preference.GetNoteClientIdPreference
+import me.ash.reader.infrastructure.preference.GetNoteTopicIdPreference
+import me.ash.reader.infrastructure.preference.LocalGetNoteApiKey
+import me.ash.reader.infrastructure.preference.LocalGetNoteClientId
+import me.ash.reader.infrastructure.preference.LocalGetNoteTopicId
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.LocalTypeChoEndpoint
 import me.ash.reader.infrastructure.preference.LocalTypeChoHomeUrl
@@ -53,12 +59,18 @@ fun ShareSettingsPage(
     val typeChoHomeUrl = LocalTypeChoHomeUrl.current
     val typeChoUsername = LocalTypeChoUsername.current
     val typeChoPassword = LocalTypeChoPassword.current
+    val getNoteApiKey = LocalGetNoteApiKey.current
+    val getNoteClientId = LocalGetNoteClientId.current
+    val getNoteTopicId = LocalGetNoteTopicId.current
 
     var expandedMode by remember { mutableStateOf(false) }
     var endpointText by remember(typeChoEndpoint) { mutableStateOf(typeChoEndpoint) }
     var homeUrlText by remember(typeChoHomeUrl) { mutableStateOf(typeChoHomeUrl) }
     var usernameText by remember(typeChoUsername) { mutableStateOf(typeChoUsername) }
     var passwordText by remember(typeChoPassword) { mutableStateOf(typeChoPassword) }
+    var getNoteApiKeyText by remember(getNoteApiKey) { mutableStateOf(getNoteApiKey) }
+    var getNoteClientIdText by remember(getNoteClientId) { mutableStateOf(getNoteClientId) }
+    var getNoteTopicIdText by remember(getNoteTopicId) { mutableStateOf(getNoteTopicId) }
 
     LaunchedEffect(typeChoEndpoint) {
         if (endpointText != typeChoEndpoint) endpointText = typeChoEndpoint
@@ -71,6 +83,15 @@ fun ShareSettingsPage(
     }
     LaunchedEffect(typeChoPassword) {
         if (passwordText != typeChoPassword) passwordText = typeChoPassword
+    }
+    LaunchedEffect(getNoteApiKey) {
+        if (getNoteApiKeyText != getNoteApiKey) getNoteApiKeyText = getNoteApiKey
+    }
+    LaunchedEffect(getNoteClientId) {
+        if (getNoteClientIdText != getNoteClientId) getNoteClientIdText = getNoteClientId
+    }
+    LaunchedEffect(getNoteTopicId) {
+        if (getNoteTopicIdText != getNoteTopicId) getNoteTopicIdText = getNoteTopicId
     }
 
     Scaffold(
@@ -162,6 +183,42 @@ fun ShareSettingsPage(
                                 TypeChoPasswordPreference.put(context, coroutineScope, it)
                             },
                             label = { Text(stringResource(R.string.typecho_password)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    if (sharedContent == SharedContentPreference.GetNote) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = getNoteApiKeyText,
+                            onValueChange = {
+                                getNoteApiKeyText = it
+                                GetNoteApiKeyPreference.put(context, coroutineScope, it)
+                            },
+                            label = { Text(stringResource(R.string.get_note_api_key)) },
+                            supportingText = { Text(stringResource(R.string.get_note_api_key_hint)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = getNoteClientIdText,
+                            onValueChange = {
+                                getNoteClientIdText = it
+                                GetNoteClientIdPreference.put(context, coroutineScope, it)
+                            },
+                            label = { Text(stringResource(R.string.get_note_client_id)) },
+                            supportingText = { Text("cli_xxxxx") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = getNoteTopicIdText,
+                            onValueChange = {
+                                getNoteTopicIdText = it
+                                GetNoteTopicIdPreference.put(context, coroutineScope, it)
+                            },
+                            label = { Text(stringResource(R.string.get_note_topic_id)) },
+                            supportingText = { Text(stringResource(R.string.get_note_topic_id_hint)) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }

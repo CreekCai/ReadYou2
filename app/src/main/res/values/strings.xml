@@ -331,8 +331,9 @@
     <string name="title_and_link">Title and link</string>
     <string name="share_original_content">Original content</string>
     <string name="share_to_typecho">Upload to TypeCho</string>
+    <string name="share_to_get_note">Upload to Get Note</string>
     <string name="share_settings">Share settings</string>
-    <string name="share_settings_desc">Share content and TypeCho publishing</string>
+    <string name="share_settings_desc">Share content and publishing services</string>
     <string name="share_action">Share action</string>
     <string name="typecho_endpoint">TypeCho XML-RPC endpoint</string>
     <string name="typecho_endpoint_hint">Exact TypeCho XML-RPC URL</string>
@@ -343,6 +344,14 @@
     <string name="typecho_upload_success">Uploaded to TypeCho</string>
     <string name="typecho_upload_success_copied">Uploaded to TypeCho and copied link</string>
     <string name="typecho_upload_failed">TypeCho upload failed: %1$s</string>
+    <string name="get_note_api_key">Get Note API Key</string>
+    <string name="get_note_api_key_hint">Authorization header value, for example gk_live_xxxxx</string>
+    <string name="get_note_client_id">Get Note Client ID</string>
+    <string name="get_note_topic_id">Get Note knowledge base ID</string>
+    <string name="get_note_topic_id_hint">Optional. Leave empty to save to default notes.</string>
+    <string name="get_note_missing_config">Please configure Get Note API Key and Client ID first</string>
+    <string name="get_note_upload_success">Uploaded to Get Note</string>
+    <string name="get_note_upload_failed">Get Note upload failed: %1$s</string>
     <string name="troubleshooting">Troubleshooting</string>
     <string name="troubleshooting_desc">Bug report, app preferences</string>
     <string name="bug_report">Bug report</string>

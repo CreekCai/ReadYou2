@@ -368,8 +368,9 @@
     <string name="insight_prompt">洞察提示词</string>
     <string name="share_original_content">原文内容</string>
     <string name="share_to_typecho">上传到 TypeCho</string>
+    <string name="share_to_get_note">上传到 Get 笔记</string>
     <string name="share_settings">分享设置</string>
-    <string name="share_settings_desc">配置分享内容和 TypeCho 发布</string>
+    <string name="share_settings_desc">配置分享内容和发布服务</string>
     <string name="share_action">分享动作</string>
     <string name="typecho_endpoint">TypeCho XML-RPC 地址</string>
     <string name="typecho_endpoint_hint">准确的 TypeCho XML-RPC 地址</string>
@@ -380,6 +381,14 @@
     <string name="typecho_upload_success">已上传到 TypeCho</string>
     <string name="typecho_upload_success_copied">已上传到 TypeCho，并复制链接</string>
     <string name="typecho_upload_failed">TypeCho 上传失败：%1$s</string>
+    <string name="get_note_api_key">Get 笔记 API Key</string>
+    <string name="get_note_api_key_hint">Authorization 请求头的值，例如 gk_live_xxxxx</string>
+    <string name="get_note_client_id">Get 笔记 Client ID</string>
+    <string name="get_note_topic_id">Get 笔记知识库 ID</string>
+    <string name="get_note_topic_id_hint">可选。留空则保存到默认笔记。</string>
+    <string name="get_note_missing_config">请先配置 Get 笔记 API Key 和 Client ID</string>
+    <string name="get_note_upload_success">已上传到 Get 笔记</string>
+    <string name="get_note_upload_failed">Get 笔记上传失败：%1$s</string>
     <string name="api_key">API 密钥</string>
     <string name="model">模型</string>
     <string name="ai_summary">AI 摘要</string>
