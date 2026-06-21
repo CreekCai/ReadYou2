@@ -25,6 +25,10 @@ import me.ash.reader.ui.ext.DataStoreKey.Companion.sharedContent
 import me.ash.reader.ui.ext.dataStore
 import me.ash.reader.ui.ext.orNotEmpty
 import me.ash.reader.ui.ext.put
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
+import org.jsoup.nodes.Node
+import org.jsoup.nodes.TextNode
 
 val LocalSharedContent = compositionLocalOf<SharedContentPreference> { SharedContentPreference.default }
 
@@ -205,15 +209,16 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                         buildMap<String, Any> {
                             put("note_type", "plain_text")
                             put("title", title.ifBlank { context.getString(R.string.share_to_get_note) })
+                            val markdownContent = content.toGetNoteMarkdown(link)
                             put(
                                 "content",
                                 buildString {
-                                    append(content.ifBlank { link })
+                                    append(markdownContent)
                                     if (link.isNotBlank()) {
                                         append("\n\n")
-                                        append(link)
+                                        append("[原文链接]($link)")
                                     }
-                                },
+                                }.trim(),
                             )
                             if (topicId.isNotBlank()) put("topic_id", topicId.trim())
                         }
@@ -268,6 +273,103 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun String.toGetNoteMarkdown(baseUrl: String): String {
+        val source = trim()
+        if (source.isBlank()) return ""
+        if (!source.containsHtmlTag()) return source
+
+        val body = Jsoup.parseBodyFragment(source, baseUrl).body()
+        return body.childNodes()
+            .joinToString("\n\n") { it.toMarkdown().trim() }
+            .replace(Regex("\n{3,}"), "\n\n")
+            .trim()
+    }
+
+    private fun String.containsHtmlTag(): Boolean =
+        Regex("""<\s*/?\s*[a-zA-Z][^>]*>""").containsMatchIn(this)
+
+    private fun Node.toMarkdown(): String =
+        when (this) {
+            is TextNode -> text()
+            is Element -> elementToMarkdown()
+            else -> childNodes().joinToString("") { it.toMarkdown() }
+        }
+
+    private fun Element.elementToMarkdown(): String {
+        val tag = tagName().lowercase()
+        return when (tag) {
+            "h1", "h2", "h3", "h4", "h5", "h6" -> {
+                val level = tag.removePrefix("h").toIntOrNull()?.coerceIn(1, 6) ?: 1
+                "${"#".repeat(level)} ${childrenMarkdown().trim()}"
+            }
+            "p" -> childrenMarkdown().trim()
+            "br" -> "  \n"
+            "strong", "b" -> childrenMarkdown().trim().takeIf { it.isNotBlank() }?.let { "**$it**" }.orEmpty()
+            "em", "i" -> childrenMarkdown().trim().takeIf { it.isNotBlank() }?.let { "_${it}_" }.orEmpty()
+            "code" -> {
+                val code = text()
+                if (parent()?.tagName()?.lowercase() == "pre") code else "`$code`"
+            }
+            "pre" -> "\n```\n${text().trimEnd()}\n```\n"
+            "a" -> {
+                val label = childrenMarkdown().trim().ifBlank { text().trim() }
+                val href = absUrl("href").ifBlank { attr("href") }
+                if (href.isBlank()) label else "[$label]($href)"
+            }
+            "img" -> {
+                val alt = attr("alt").trim()
+                val src = absUrl("src").ifBlank { attr("src") }
+                if (src.isBlank()) "" else "![$alt]($src)"
+            }
+            "ul" -> listItems(ordered = false)
+            "ol" -> listItems(ordered = true)
+            "li" -> childrenMarkdown().trim()
+            "blockquote" ->
+                childrenMarkdown()
+                    .trim()
+                    .lineSequence()
+                    .joinToString("\n") { "> $it" }
+            "hr" -> "---"
+            "table" -> tableMarkdown()
+            "thead", "tbody", "tfoot", "tr", "th", "td" -> childrenMarkdown().trim()
+            "script", "style", "noscript" -> ""
+            else -> childrenMarkdown().trim()
+        }
+    }
+
+    private fun Element.childrenMarkdown(): String =
+        childNodes().joinToString("") { it.toMarkdown() }
+
+    private fun Element.listItems(ordered: Boolean): String =
+        children()
+            .filter { it.tagName().equals("li", ignoreCase = true) }
+            .mapIndexed { index, item ->
+                val prefix = if (ordered) "${index + 1}. " else "- "
+                item.childrenMarkdown()
+                    .trim()
+                    .lineSequence()
+                    .mapIndexed { lineIndex, line ->
+                        if (lineIndex == 0) prefix + line else "  $line"
+                    }
+                    .joinToString("\n")
+            }
+            .joinToString("\n")
+
+    private fun Element.tableMarkdown(): String {
+        val rows = select("tr").map { row ->
+            row.select("th,td").map { it.childrenMarkdown().trim().replace("|", "\\|") }
+        }.filter { it.isNotEmpty() }
+        if (rows.isEmpty()) return ""
+        val header = rows.first()
+        val separator = header.map { "---" }
+        val bodyRows = rows.drop(1)
+        return buildString {
+            appendLine(header.joinToString(" | ", "| ", " |"))
+            appendLine(separator.joinToString(" | ", "| ", " |"))
+            bodyRows.forEach { appendLine(it.joinToString(" | ", "| ", " |")) }
+        }.trim()
     }
 
     private fun xmlRpcBody(
