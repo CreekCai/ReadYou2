@@ -1,7 +1,6 @@
 package me.ash.reader.ui.page.home.reading
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,30 +9,40 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.unit.sp
 import me.ash.reader.R
+import me.ash.reader.infrastructure.preference.LocalReadingSubheadUpperCase
+import me.ash.reader.infrastructure.preference.LocalReadingTextLineHeight
 import me.ash.reader.ui.component.reader.LocalTextContentWidth
 import me.ash.reader.ui.component.reader.Reader
+import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
 import me.ash.reader.ui.page.adaptive.InsightState
@@ -49,6 +58,10 @@ fun ArticleInsightPage(
     val readerState = viewModel.readerStateStateFlow.collectAsStateValue()
     val insightState = viewModel.insightState.collectAsStateValue()
     val maxWidthModifier = Modifier.widthIn(max = LocalTextContentWidth.current)
+    val subheadUpperCase = LocalReadingSubheadUpperCase.current
+    val listState = rememberSaveable(readerState.articleId, saver = LazyListState.Saver) {
+        LazyListState()
+    }
 
     LaunchedEffect(readerState.articleId) {
         if (readerState.articleId != null && insightState is InsightState.Idle) {
@@ -57,6 +70,7 @@ fun ArticleInsightPage(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = {
@@ -95,48 +109,67 @@ fun ArticleInsightPage(
             )
         },
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(paddingValues),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
-        ) {
-            when (insightState) {
-                InsightState.Idle -> {
-                    item {
-                        InsightEmptyState(
-                            modifier = maxWidthModifier.fillMaxWidth(),
-                            text = "还没有生成洞察",
-                            actionText = "开始生成",
-                            onClick = { viewModel.generateInsight() },
-                        )
-                    }
-                }
-                InsightState.Loading -> {
-                    item {
-                        InsightLoadingState(modifier = maxWidthModifier.fillMaxWidth())
-                    }
-                }
-                is InsightState.Error -> {
-                    item {
-                        InsightEmptyState(
-                            modifier = maxWidthModifier.fillMaxWidth(),
-                            text = insightState.message,
-                            actionText = "重试",
-                            isError = true,
-                            onClick = { viewModel.generateInsight() },
-                        )
-                    }
-                }
-                is InsightState.Success -> {
-                    Reader(
-                        context = context,
-                        subheadUpperCase = false,
-                        link = readerState.link.orEmpty(),
-                        content = insightState.insight,
-                        onImageClick = null,
-                        onLinkClick = { uriHandler.openUri(it) },
+        CompositionLocalProvider(
+            LocalTextStyle provides
+                LocalTextStyle.current.run {
+                    merge(
+                        lineHeight =
+                            if (lineHeight.isSpecified)
+                                (lineHeight.value * LocalReadingTextLineHeight.current).sp
+                            else TextUnit.Unspecified
                     )
-                    item { Spacer(modifier = Modifier.height(96.dp)) }
+                }
+        ) {
+            LazyColumn(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .drawVerticalScrollIndicator(listState),
+                state = listState,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                when (insightState) {
+                    InsightState.Idle -> {
+                        item {
+                            InsightEmptyState(
+                                modifier = maxWidthModifier.fillMaxWidth(),
+                                text = "还没有生成洞察",
+                                actionText = "开始生成",
+                                onClick = { viewModel.generateInsight() },
+                            )
+                        }
+                    }
+                    InsightState.Loading -> {
+                        item {
+                            InsightLoadingState(modifier = maxWidthModifier.fillMaxWidth())
+                        }
+                    }
+                    is InsightState.Error -> {
+                        item {
+                            InsightEmptyState(
+                                modifier = maxWidthModifier.fillMaxWidth(),
+                                text = insightState.message,
+                                actionText = "重试",
+                                isError = true,
+                                onClick = { viewModel.generateInsight() },
+                            )
+                        }
+                    }
+                    is InsightState.Success -> {
+                        item {
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+                        Reader(
+                            context = context,
+                            subheadUpperCase = subheadUpperCase.value,
+                            link = readerState.link.orEmpty(),
+                            content = insightState.insight,
+                            onImageClick = null,
+                            onLinkClick = { uriHandler.openUri(it) },
+                        )
+                        item { Spacer(modifier = Modifier.height(128.dp)) }
+                    }
                 }
             }
         }

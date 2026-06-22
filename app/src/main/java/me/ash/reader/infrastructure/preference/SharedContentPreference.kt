@@ -140,7 +140,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                                 append("\n\n")
                                 append(link)
                             }
-                        },
+                        }.normalizeTypeChoContent(),
                         categories = listOfNotNull(
                             expirationMinutes.toTypeChoExpirationCategory().takeIf { it.isNotBlank() }
                         ),
@@ -296,6 +296,36 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
 
     private fun String.containsHtmlTag(): Boolean =
         Regex("""<\s*/?\s*[a-zA-Z][^>]*>""").containsMatchIn(this)
+
+    private fun String.normalizeTypeChoContent(): String {
+        val source = trim()
+        if (source.isBlank() || !source.containsHtmlTag()) return source
+
+        val body = Jsoup.parseBodyFragment(source).body()
+        body.select("img").forEach { image ->
+            image.removeAttr("width")
+            image.removeAttr("height")
+            image.normalizeTypeChoImageStyle()
+        }
+        return body.html()
+    }
+
+    private fun Element.normalizeTypeChoImageStyle() {
+        val declarations =
+            attr("style")
+                .split(";")
+                .mapNotNull { declaration ->
+                    val parts = declaration.split(":", limit = 2)
+                    val name = parts.getOrNull(0)?.trim()?.lowercase().orEmpty()
+                    val value = parts.getOrNull(1)?.trim().orEmpty()
+                    if (name.isBlank() || value.isBlank()) return@mapNotNull null
+                    name to value
+                }
+                .toMap(LinkedHashMap())
+        declarations["max-width"] = "100%"
+        declarations["height"] = "auto"
+        attr("style", declarations.entries.joinToString("; ") { "${it.key}: ${it.value}" })
+    }
 
     private fun Node.toMarkdown(): String =
         when (this) {
