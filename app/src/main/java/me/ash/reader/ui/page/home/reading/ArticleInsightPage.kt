@@ -13,7 +13,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -143,12 +144,13 @@ fun ArticleInsightPage(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun InsightLoadingState(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.padding(top = 96.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+        LoadingIndicator(modifier = Modifier.size(56.dp))
         Spacer(modifier = Modifier.height(20.dp))
         Text(
             text = "正在分析文章，请稍候...",

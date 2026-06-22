@@ -90,6 +90,7 @@ fun Preferences.toSettings(): Settings {
         typeChoHomeUrl = TypeChoHomeUrlPreference.fromPreferences(this),
         typeChoUsername = TypeChoUsernamePreference.fromPreferences(this),
         typeChoPassword = TypeChoPasswordPreference.fromPreferences(this),
+        typeChoExpirationMinutes = TypeChoExpirationMinutesPreference.fromPreferences(this),
         getNoteApiKey = GetNoteApiKeyPreference.fromPreferences(this),
         getNoteClientId = GetNoteClientIdPreference.fromPreferences(this),
         getNoteTopicId = GetNoteTopicIdPreference.fromPreferences(this),

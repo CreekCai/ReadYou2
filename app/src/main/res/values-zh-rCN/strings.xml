@@ -377,6 +377,8 @@
     <string name="typecho_home_url">TypeCho 网站主页地址</string>
     <string name="typecho_username">TypeCho 用户名</string>
     <string name="typecho_password">TypeCho 密码</string>
+    <string name="typecho_expiration_minutes">文章有效期</string>
+    <string name="typecho_expiration_minutes_hint">只输入天数。例如 1 会上传为分类标签 1440</string>
     <string name="typecho_missing_config">请先配置 TypeCho 参数</string>
     <string name="typecho_upload_success">已上传到 TypeCho</string>
     <string name="typecho_upload_success_copied">已上传到 TypeCho，并复制链接</string>

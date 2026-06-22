@@ -83,6 +83,7 @@ data class Settings(
     val typeChoHomeUrl: String = TypeChoHomeUrlPreference.default,
     val typeChoUsername: String = TypeChoUsernamePreference.default,
     val typeChoPassword: String = TypeChoPasswordPreference.default,
+    val typeChoExpirationMinutes: String = TypeChoExpirationMinutesPreference.default,
     val getNoteApiKey: String = GetNoteApiKeyPreference.default,
     val getNoteClientId: String = GetNoteClientIdPreference.default,
     val getNoteTopicId: String = GetNoteTopicIdPreference.default,

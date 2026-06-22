@@ -49,6 +49,7 @@ import me.ash.reader.infrastructure.preference.LocalGetNoteTopicId
 import me.ash.reader.infrastructure.preference.LocalReadingPageTonalElevation
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.LocalTypeChoEndpoint
+import me.ash.reader.infrastructure.preference.LocalTypeChoExpirationMinutes
 import me.ash.reader.infrastructure.preference.LocalTypeChoHomeUrl
 import me.ash.reader.infrastructure.preference.LocalTypeChoPassword
 import me.ash.reader.infrastructure.preference.LocalTypeChoUsername
@@ -79,6 +80,7 @@ fun TopBar(
     val typeChoHomeUrl = LocalTypeChoHomeUrl.current
     val typeChoUsername = LocalTypeChoUsername.current
     val typeChoPassword = LocalTypeChoPassword.current
+    val typeChoExpirationMinutes = LocalTypeChoExpirationMinutes.current
     val getNoteApiKey = LocalGetNoteApiKey.current
     val getNoteClientId = LocalGetNoteClientId.current
     val getNoteTopicId = LocalGetNoteTopicId.current
@@ -170,6 +172,7 @@ fun TopBar(
                                 typeChoHomeUrl = typeChoHomeUrl,
                                 typeChoUsername = typeChoUsername,
                                 typeChoPassword = typeChoPassword,
+                                typeChoExpirationMinutes = typeChoExpirationMinutes,
                                 getNoteApiKey = getNoteApiKey,
                                 getNoteClientId = getNoteClientId,
                                 getNoteTopicId = getNoteTopicId,

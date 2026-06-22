@@ -16,6 +16,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToLong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -65,6 +66,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         typeChoHomeUrl: String = "",
         typeChoUsername: String = "",
         typeChoPassword: String = "",
+        typeChoExpirationMinutes: String = "",
         getNoteApiKey: String = "",
         getNoteClientId: String = "",
         getNoteTopicId: String = "",
@@ -79,6 +81,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                     homeUrl = typeChoHomeUrl,
                     username = typeChoUsername,
                     password = typeChoPassword,
+                    expirationMinutes = typeChoExpirationMinutes,
                     title = title.orEmpty(),
                     link = link.orEmpty(),
                     content = content.orEmpty(),
@@ -109,6 +112,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         homeUrl: String,
         username: String,
         password: String,
+        expirationMinutes: String,
         title: String,
         link: String,
         content: String,
@@ -137,7 +141,10 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                                 append(link)
                             }
                         },
-                )
+                        categories = listOfNotNull(
+                            expirationMinutes.toTypeChoExpirationCategory().takeIf { it.isNotBlank() }
+                        ),
+                    )
                 val response = postXmlRpc(endpoint.trim(), body)
                 val responseText = response.body
                 if (response.code !in 200..299) {
@@ -377,6 +384,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         password: String,
         title: String,
         content: String,
+        categories: List<String> = emptyList(),
     ): String =
         """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -397,6 +405,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                     <name>description</name>
                     <value><string>${content.xmlEscape()}</string></value>
                   </member>
+                  ${categoriesXml(categories)}
                 </struct>
               </value>
             </param>
@@ -404,6 +413,38 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
           </params>
         </methodCall>
         """.trim()
+
+    private fun categoriesXml(categories: List<String>): String {
+        if (categories.isEmpty()) return ""
+        val values = categories.joinToString("\n") {
+            "<value><string>${it.xmlEscape()}</string></value>"
+        }
+        return """
+        <member>
+          <name>categories</name>
+          <value>
+            <array>
+              <data>
+                $values
+              </data>
+            </array>
+          </value>
+        </member>
+        """.trimIndent()
+    }
+
+    private fun String.toTypeChoExpirationCategory(): String {
+        val source = trim()
+        if (source.isBlank()) return ""
+        val match = Regex("""^(\d+(?:\.\d+)?)\s*([^\d\s]+)?$""").matchEntire(source) ?: return source
+        val amount = match.groupValues.getOrNull(1)?.toDoubleOrNull() ?: return source
+        val unit = match.groupValues.getOrNull(2).orEmpty().lowercase()
+        val expirationDays = when (unit) {
+            "", "d", "day", "days", "\u5929", "\u65e5" -> amount
+            else -> return source
+        }
+        return (expirationDays * 1440).roundToLong().coerceAtLeast(0).toString()
+    }
 
     private fun String.xmlEscape(): String =
         filter { it == '\t' || it == '\n' || it == '\r' || it >= ' ' }
@@ -480,7 +521,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
     companion object {
 
         val default = TitleAndLink
-        val values = listOf(TitleAndLink, FullContent, TypeCho, GetNote)
+        val values = listOf(TitleAndLink, FullContent, TypeCho)
 
         fun fromPreferences(preferences: Preferences): SharedContentPreference =
             when (preferences[DataStoreKey.keys[sharedContent]?.key as Preferences.Key<Int>]) {
@@ -488,7 +529,7 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
                 1 -> TitleAndLink
                 2 -> FullContent
                 3 -> TypeCho
-                4 -> GetNote
+                4 -> default
                 else -> default
             }
     }

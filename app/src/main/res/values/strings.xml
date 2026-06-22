@@ -340,6 +340,8 @@
     <string name="typecho_home_url">TypeCho site URL</string>
     <string name="typecho_username">TypeCho username</string>
     <string name="typecho_password">TypeCho password</string>
+    <string name="typecho_expiration_minutes">Article expiration days</string>
+    <string name="typecho_expiration_minutes_hint">Enter days only. For example, 1 is sent as category 1440.</string>
     <string name="typecho_missing_config">Please configure TypeCho first</string>
     <string name="typecho_upload_success">Uploaded to TypeCho</string>
     <string name="typecho_upload_success_copied">Uploaded to TypeCho and copied link</string>

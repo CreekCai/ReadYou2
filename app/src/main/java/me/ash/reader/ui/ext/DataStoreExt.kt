@@ -201,6 +201,7 @@ sealed interface PreferencesKey {
         const val typeChoHomeUrl = "typeChoHomeUrl"
         const val typeChoUsername = "typeChoUsername"
         const val typeChoPassword = "typeChoPassword"
+        const val typeChoExpirationMinutes = "typeChoExpirationMinutes"
         const val getNoteApiKey = "getNoteApiKey"
         const val getNoteClientId = "getNoteClientId"
         const val getNoteTopicId = "getNoteTopicId"
@@ -304,6 +305,7 @@ sealed interface PreferencesKey {
                 StringKey(typeChoHomeUrl),
                 StringKey(typeChoUsername),
                 StringKey(typeChoPassword),
+                StringKey(typeChoExpirationMinutes),
                 StringKey(getNoteApiKey),
                 StringKey(getNoteClientId),
                 StringKey(getNoteTopicId),
@@ -415,6 +417,7 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
         const val typeChoHomeUrl = "typeChoHomeUrl"
         const val typeChoUsername = "typeChoUsername"
         const val typeChoPassword = "typeChoPassword"
+        const val typeChoExpirationMinutes = "typeChoExpirationMinutes"
         const val getNoteApiKey = "getNoteApiKey"
         const val getNoteClientId = "getNoteClientId"
         const val getNoteTopicId = "getNoteTopicId"
@@ -598,6 +601,8 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
                     DataStoreKey(stringPreferencesKey(typeChoUsername), String::class.java),
                 typeChoPassword to
                     DataStoreKey(stringPreferencesKey(typeChoPassword), String::class.java),
+                typeChoExpirationMinutes to
+                    DataStoreKey(stringPreferencesKey(typeChoExpirationMinutes), String::class.java),
                 getNoteApiKey to
                     DataStoreKey(stringPreferencesKey(getNoteApiKey), String::class.java),
                 getNoteClientId to

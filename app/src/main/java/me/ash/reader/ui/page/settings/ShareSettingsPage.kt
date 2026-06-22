@@ -37,11 +37,13 @@ import me.ash.reader.infrastructure.preference.LocalGetNoteClientId
 import me.ash.reader.infrastructure.preference.LocalGetNoteTopicId
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.LocalTypeChoEndpoint
+import me.ash.reader.infrastructure.preference.LocalTypeChoExpirationMinutes
 import me.ash.reader.infrastructure.preference.LocalTypeChoHomeUrl
 import me.ash.reader.infrastructure.preference.LocalTypeChoPassword
 import me.ash.reader.infrastructure.preference.LocalTypeChoUsername
 import me.ash.reader.infrastructure.preference.SharedContentPreference
 import me.ash.reader.infrastructure.preference.TypeChoEndpointPreference
+import me.ash.reader.infrastructure.preference.TypeChoExpirationMinutesPreference
 import me.ash.reader.infrastructure.preference.TypeChoHomeUrlPreference
 import me.ash.reader.infrastructure.preference.TypeChoPasswordPreference
 import me.ash.reader.infrastructure.preference.TypeChoUsernamePreference
@@ -59,6 +61,7 @@ fun ShareSettingsPage(
     val typeChoHomeUrl = LocalTypeChoHomeUrl.current
     val typeChoUsername = LocalTypeChoUsername.current
     val typeChoPassword = LocalTypeChoPassword.current
+    val typeChoExpirationMinutes = LocalTypeChoExpirationMinutes.current
     val getNoteApiKey = LocalGetNoteApiKey.current
     val getNoteClientId = LocalGetNoteClientId.current
     val getNoteTopicId = LocalGetNoteTopicId.current
@@ -68,6 +71,7 @@ fun ShareSettingsPage(
     var homeUrlText by remember(typeChoHomeUrl) { mutableStateOf(typeChoHomeUrl) }
     var usernameText by remember(typeChoUsername) { mutableStateOf(typeChoUsername) }
     var passwordText by remember(typeChoPassword) { mutableStateOf(typeChoPassword) }
+    var expirationMinutesText by remember(typeChoExpirationMinutes) { mutableStateOf(typeChoExpirationMinutes) }
     var getNoteApiKeyText by remember(getNoteApiKey) { mutableStateOf(getNoteApiKey) }
     var getNoteClientIdText by remember(getNoteClientId) { mutableStateOf(getNoteClientId) }
     var getNoteTopicIdText by remember(getNoteTopicId) { mutableStateOf(getNoteTopicId) }
@@ -83,6 +87,9 @@ fun ShareSettingsPage(
     }
     LaunchedEffect(typeChoPassword) {
         if (passwordText != typeChoPassword) passwordText = typeChoPassword
+    }
+    LaunchedEffect(typeChoExpirationMinutes) {
+        if (expirationMinutesText != typeChoExpirationMinutes) expirationMinutesText = typeChoExpirationMinutes
     }
     LaunchedEffect(getNoteApiKey) {
         if (getNoteApiKeyText != getNoteApiKey) getNoteApiKeyText = getNoteApiKey
@@ -183,6 +190,17 @@ fun ShareSettingsPage(
                                 TypeChoPasswordPreference.put(context, coroutineScope, it)
                             },
                             label = { Text(stringResource(R.string.typecho_password)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = expirationMinutesText,
+                            onValueChange = {
+                                expirationMinutesText = it
+                                TypeChoExpirationMinutesPreference.put(context, coroutineScope, it)
+                            },
+                            label = { Text(stringResource(R.string.typecho_expiration_minutes)) },
+                            supportingText = { Text(stringResource(R.string.typecho_expiration_minutes_hint)) },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
