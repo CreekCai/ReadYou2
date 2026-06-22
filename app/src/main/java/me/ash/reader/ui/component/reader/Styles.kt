@@ -235,9 +235,15 @@ fun boldStyle(): TextStyle =
     bodyStyle().merge(SpanStyle(fontWeight = FontWeight.SemiBold, color = onSurfaceColor()))
 
 @Stable
+fun boldSpanStyle(): SpanStyle = SpanStyle(fontWeight = FontWeight.SemiBold)
+
+@Stable
 @Composable
 fun codeInlineStyle(): TextStyle =
     MaterialTheme.typography.titleSmall.merge(
         color = bodyForeground(),
         fontFamily = FontFamily.Monospace,
     )
+
+@Stable
+fun codeInlineSpanStyle(): SpanStyle = SpanStyle(fontFamily = FontFamily.Monospace)

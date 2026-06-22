@@ -324,7 +324,7 @@ private fun TextComposer.appendTextChildren(
 
                     "strong",
                     "b" -> {
-                        withComposableStyle(style = { boldStyle() }) {
+                        withSpanStyle(boldSpanStyle()) {
                             appendTextChildren(
                                 element.childNodes(),
                                 lazyListScope = lazyListScope,
@@ -442,7 +442,7 @@ private fun TextComposer.appendTextChildren(
                             )
                         } else {
                             // inline code
-                            withComposableStyle(style = { codeInlineStyle() }) {
+                            withSpanStyle(codeInlineSpanStyle()) {
                                 appendTextChildren(
                                     element.childNodes(),
                                     preFormatted = preFormatted,
@@ -543,10 +543,9 @@ private fun TextComposer.appendTextChildren(
                             .filter { it.tagName() == "li" }
                             .forEach { listItem ->
                                 withParagraph {
-                                    // no break space
                                     append("  • ")
-                                    appendTextChildren(
-                                        listItem.childNodes(),
+                                    appendListItemChildren(
+                                        listItem,
                                         lazyListScope = lazyListScope,
                                         imagePlaceholder = imagePlaceholder,
                                         onLinkClick = onLinkClick,
@@ -563,10 +562,9 @@ private fun TextComposer.appendTextChildren(
                             .filter { it.tagName() == "li" }
                             .forEachIndexed { i, listItem ->
                                 withParagraph {
-                                    // no break space
                                     append("${i + 1}. ")
-                                    appendTextChildren(
-                                        listItem.childNodes(),
+                                    appendListItemChildren(
+                                        listItem,
                                         lazyListScope = lazyListScope,
                                         imagePlaceholder = imagePlaceholder,
                                         onLinkClick = onLinkClick,
@@ -709,6 +707,47 @@ private fun TextComposer.appendTextChildren(
         }
 
         node = node.nextSibling()
+    }
+}
+
+private fun TextComposer.appendListItemChildren(
+    listItem: Element,
+    preFormatted: Boolean = false,
+    subheadUpperCase: Boolean = false,
+    lazyListScope: LazyListScope,
+    @DrawableRes imagePlaceholder: Int,
+    onImageClick: ((imgUrl: String, altText: String) -> Unit)?,
+    onLinkClick: (String) -> Unit,
+    baseUrl: String,
+) {
+    listItem.childNodes().forEach { child ->
+        if (
+            child is Element &&
+                child.tagName() == "p" &&
+                !child.hasClass("readability-styled")
+        ) {
+            appendTextChildren(
+                child.childNodes(),
+                preFormatted = preFormatted,
+                subheadUpperCase = subheadUpperCase,
+                lazyListScope = lazyListScope,
+                imagePlaceholder = imagePlaceholder,
+                onImageClick = onImageClick,
+                onLinkClick = onLinkClick,
+                baseUrl = baseUrl,
+            )
+        } else {
+            appendTextChildren(
+                listOf(child),
+                preFormatted = preFormatted,
+                subheadUpperCase = subheadUpperCase,
+                lazyListScope = lazyListScope,
+                imagePlaceholder = imagePlaceholder,
+                onImageClick = onImageClick,
+                onLinkClick = onLinkClick,
+                baseUrl = baseUrl,
+            )
+        }
     }
 }
 

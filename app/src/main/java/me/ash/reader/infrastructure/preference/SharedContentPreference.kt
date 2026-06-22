@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.util.Base64
 import android.widget.Toast
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
@@ -13,6 +14,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
@@ -129,18 +131,26 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
 
         CoroutineScope(Dispatchers.IO).launch {
             runCatching {
+                val preparedContent =
+                    buildString {
+                        append(content.ifBlank { link })
+                        if (link.isNotBlank()) {
+                            append("\n\n")
+                            append(link)
+                        }
+                    }
+                        .prepareTypeChoContent(
+                            endpoint = endpoint.trim(),
+                            username = username,
+                            password = password,
+                            baseUrl = link,
+                        )
                 val body =
                     xmlRpcBody(
                         username = username,
                         password = password,
                         title = title,
-                        content = buildString {
-                            append(content.ifBlank { link })
-                            if (link.isNotBlank()) {
-                                append("\n\n")
-                                append(link)
-                            }
-                        }.normalizeTypeChoContent(),
+                        content = preparedContent,
                         categories = listOfNotNull(
                             expirationMinutes.toTypeChoExpirationCategory().takeIf { it.isNotBlank() }
                         ),
@@ -297,17 +307,102 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
     private fun String.containsHtmlTag(): Boolean =
         Regex("""<\s*/?\s*[a-zA-Z][^>]*>""").containsMatchIn(this)
 
-    private fun String.normalizeTypeChoContent(): String {
+    private data class TypeChoImage(
+        val name: String,
+        val contentType: String,
+        val bytes: ByteArray,
+    )
+
+    private fun String.prepareTypeChoContent(
+        endpoint: String,
+        username: String,
+        password: String,
+        baseUrl: String,
+    ): String {
         val source = trim()
         if (source.isBlank() || !source.containsHtmlTag()) return source
 
-        val body = Jsoup.parseBodyFragment(source).body()
+        val body = Jsoup.parseBodyFragment(source, baseUrl).body()
         body.select("img").forEach { image ->
+            val imageUrl = image.absUrl("src").ifBlank { image.attr("src") }
+            if (imageUrl.isNotBlank()) {
+                uploadTypeChoImage(
+                    endpoint = endpoint,
+                    username = username,
+                    password = password,
+                    imageUrl = imageUrl,
+                )?.let { uploadedUrl ->
+                    image.attr("src", uploadedUrl)
+                    image.removeAttr("srcset")
+                    image.removeAttr("data-src")
+                }
+            }
             image.removeAttr("width")
             image.removeAttr("height")
+            image.attr("loading", "lazy")
+            image.attr("decoding", "async")
             image.normalizeTypeChoImageStyle()
         }
         return body.html()
+    }
+
+    private fun uploadTypeChoImage(
+        endpoint: String,
+        username: String,
+        password: String,
+        imageUrl: String,
+    ): String? =
+        runCatching {
+            val image = downloadTypeChoImage(imageUrl)
+            val body =
+                xmlRpcMediaBody(
+                    username = username,
+                    password = password,
+                    name = image.name,
+                    contentType = image.contentType,
+                    bits = Base64.encodeToString(image.bytes, Base64.NO_WRAP),
+                )
+            val response = postXmlRpc(endpoint, body)
+            val responseText = response.body
+            if (response.code !in 200..299) {
+                error("HTTP ${response.code}${responseText.shortErrorSuffix()}")
+            }
+            if (responseText.contains("<fault>", ignoreCase = true)) {
+                error(responseText.extractXmlRpcFault().ifBlank { "XML-RPC fault" })
+            }
+            responseText.extractXmlRpcMemberValue("url").ifBlank {
+                responseText.extractXmlRpcValue()
+            }.ifBlank {
+                error("Missing uploaded image url")
+            }
+        }.getOrNull()
+
+    private fun downloadTypeChoImage(imageUrl: String): TypeChoImage {
+        val connection = (URL(imageUrl).openConnection() as HttpURLConnection).apply {
+            connectTimeout = TimeUnit.SECONDS.toMillis(15).toInt()
+            readTimeout = TimeUnit.SECONDS.toMillis(30).toInt()
+            requestMethod = "GET"
+            setRequestProperty("User-Agent", "ReadYou TypeCho Publisher")
+        }
+        return try {
+            val code = connection.responseCode
+            if (code !in 200..299) {
+                error("HTTP $code")
+            }
+            val contentType =
+                connection.contentType
+                    ?.substringBefore(";")
+                    ?.trim()
+                    ?.takeIf { it.startsWith("image/", ignoreCase = true) }
+                    ?: imageUrl.inferImageContentType()
+            TypeChoImage(
+                name = imageUrl.inferImageFileName(contentType),
+                contentType = contentType,
+                bytes = connection.inputStream.use { it.readBytes() },
+            )
+        } finally {
+            connection.disconnect()
+        }
     }
 
     private fun Element.normalizeTypeChoImageStyle() {
@@ -463,6 +558,81 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
         """.trimIndent()
     }
 
+    private fun xmlRpcMediaBody(
+        username: String,
+        password: String,
+        name: String,
+        contentType: String,
+        bits: String,
+    ): String =
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <methodCall>
+          <methodName>metaWeblog.newMediaObject</methodName>
+          <params>
+            <param><value><string>1</string></value></param>
+            <param><value><string>${username.xmlEscape()}</string></value></param>
+            <param><value><string>${password.xmlEscape()}</string></value></param>
+            <param>
+              <value>
+                <struct>
+                  <member>
+                    <name>name</name>
+                    <value><string>${name.xmlEscape()}</string></value>
+                  </member>
+                  <member>
+                    <name>type</name>
+                    <value><string>${contentType.xmlEscape()}</string></value>
+                  </member>
+                  <member>
+                    <name>bits</name>
+                    <value><base64>$bits</base64></value>
+                  </member>
+                  <member>
+                    <name>overwrite</name>
+                    <value><boolean>0</boolean></value>
+                  </member>
+                </struct>
+              </value>
+            </param>
+          </params>
+        </methodCall>
+        """.trim()
+
+    private fun String.inferImageContentType(): String =
+        when (substringBefore("?").substringAfterLast(".", "").lowercase()) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            "svg" -> "image/svg+xml"
+            else -> "image/jpeg"
+        }
+
+    private fun String.inferImageFileName(contentType: String): String {
+        val path =
+            runCatching { URI(this).path }
+                .getOrNull()
+                ?.substringAfterLast("/")
+                .orEmpty()
+        val cleanName = path.substringBefore("?").sanitizeFileName()
+        if (cleanName.isNotBlank() && cleanName.contains(".")) return cleanName
+        val extension =
+            when (contentType.lowercase()) {
+                "image/png" -> "png"
+                "image/gif" -> "gif"
+                "image/webp" -> "webp"
+                "image/svg+xml" -> "svg"
+                else -> "jpg"
+            }
+        return "${cleanName.ifBlank { "readyou-image-${System.currentTimeMillis()}" }}.$extension"
+    }
+
+    private fun String.sanitizeFileName(): String =
+        replace(Regex("""[^\w.\-]+"""), "-")
+            .trim('-', '.', '_')
+            .take(96)
+
     private fun String.toTypeChoExpirationCategory(): String {
         val source = trim()
         if (source.isBlank()) return ""
@@ -508,6 +678,18 @@ sealed class SharedContentPreference(val value: Int) : Preference() {
 
     private fun String.extractXmlRpcValue(): String =
         Regex("<(?:string|int|i4)>(.*?)</(?:string|int|i4)>", RegexOption.DOT_MATCHES_ALL)
+            .find(this)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.xmlUnescape()
+            ?.trim()
+            .orEmpty()
+
+    private fun String.extractXmlRpcMemberValue(memberName: String): String =
+        Regex(
+            "<name>${Regex.escape(memberName)}</name>\\s*<value>\\s*<(?:string|int|i4)>(.*?)</(?:string|int|i4)>",
+            RegexOption.DOT_MATCHES_ALL,
+        )
             .find(this)
             ?.groupValues
             ?.getOrNull(1)
