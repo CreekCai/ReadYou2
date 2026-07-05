@@ -34,6 +34,11 @@ object WebViewLayout {
                             allowFileAccessFromFileURLs = true
                             "sans-serif"
                         }
+                        ReadingFontsPreference.Songti -> {
+                            allowFileAccess = true
+                            allowFileAccessFromFileURLs = true
+                            "serif"
+                        }
                         ReadingFontsPreference.External -> {
                             allowFileAccess = true
                             allowFileAccessFromFileURLs = true
