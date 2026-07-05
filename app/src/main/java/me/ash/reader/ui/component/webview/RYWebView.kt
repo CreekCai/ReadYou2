@@ -94,7 +94,7 @@ fun RYWebView(
         else if (readingFonts is ReadingFontsPreference.GoogleSans) {
             "/android_res/font/google_sans_flex.ttf"
         } else if (readingFonts is ReadingFontsPreference.Songti) {
-            "/android_res/font/source_han_serif_sc_regular.otf"
+            "/android_res/font/source_han_serif_sc_medium.otf"
         } else null
 
     AndroidView(

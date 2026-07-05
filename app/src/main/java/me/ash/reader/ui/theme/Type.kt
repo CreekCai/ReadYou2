@@ -114,7 +114,7 @@ val GoogleSansFontFamily =
         GoogleSansBoldItalic,
     )
 
-val SongtiFontFamily = FontFamily(Font(R.font.source_han_serif_sc_regular))
+val SongtiFontFamily = FontFamily(Font(R.font.source_han_serif_sc_medium))
 
 /**
  * Resolve the text to Rtl if the text requires BiDirectional
