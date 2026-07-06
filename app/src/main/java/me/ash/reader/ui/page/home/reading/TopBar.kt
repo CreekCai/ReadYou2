@@ -1,5 +1,8 @@
 package me.ash.reader.ui.page.home.reading
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -38,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -54,7 +58,9 @@ import me.ash.reader.infrastructure.preference.LocalTypeChoHomeUrl
 import me.ash.reader.infrastructure.preference.LocalTypeChoPassword
 import me.ash.reader.infrastructure.preference.LocalTypeChoUsername
 import me.ash.reader.infrastructure.preference.ReadingPageTonalElevationPreference
+import me.ash.reader.ui.component.base.CanBeDisabledIconButton
 import me.ash.reader.ui.component.base.FeedbackIconButton
+import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.page.adaptive.NavigationAction
 import me.ash.reader.ui.page.adaptive.ReaderState
 
@@ -72,9 +78,11 @@ fun TopBar(
     onNavButtonClick: (NavigationAction) -> Unit = {},
     onNavigateToStylePage: () -> Unit,
     onTranslate: () -> Unit,
-    readerState: ReaderState
+    readerState: ReaderState,
+    aiSummary: String? = null,
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val sharedContent = LocalSharedContent.current
     val typeChoEndpoint = LocalTypeChoEndpoint.current
     val typeChoHomeUrl = LocalTypeChoHomeUrl.current
@@ -157,27 +165,44 @@ fun TopBar(
 //                        ) {
 //                            onNavigateToStylePage()
 //                        }
-                        FeedbackIconButton(
-                            modifier = Modifier.size(20.dp),
+                        CanBeDisabledIconButton(
+                            modifier = Modifier.size(48.dp),
+                            disabled = false,
                             imageVector = Icons.Outlined.Share,
+                            size = 20.dp,
                             contentDescription = stringResource(R.string.share),
                             tint = MaterialTheme.colorScheme.onSurface,
-                        ) {
-                            sharedContent.share(
-                                context = context,
-                                title = title,
-                                link = link,
-                                content = readerState.content.text,
-                                typeChoEndpoint = typeChoEndpoint,
-                                typeChoHomeUrl = typeChoHomeUrl,
-                                typeChoUsername = typeChoUsername,
-                                typeChoPassword = typeChoPassword,
-                                typeChoExpirationMinutes = typeChoExpirationMinutes,
-                                getNoteApiKey = getNoteApiKey,
-                                getNoteClientId = getNoteClientId,
-                                getNoteTopicId = getNoteTopicId,
-                            )
-                        }
+                            onLongClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                if (aiSummary.isNullOrBlank()) {
+                                    context.showToast("暂无 AI Summary")
+                                } else {
+                                    val clipboard =
+                                        context.getSystemService(ClipboardManager::class.java)
+                                    clipboard.setPrimaryClip(
+                                        ClipData.newPlainText("AI Summary", aiSummary)
+                                    )
+                                    context.showToast("AI Summary 已复制")
+                                }
+                            },
+                            onClick = {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                sharedContent.share(
+                                    context = context,
+                                    title = title,
+                                    link = link,
+                                    content = readerState.content.text,
+                                    typeChoEndpoint = typeChoEndpoint,
+                                    typeChoHomeUrl = typeChoHomeUrl,
+                                    typeChoUsername = typeChoUsername,
+                                    typeChoPassword = typeChoPassword,
+                                    typeChoExpirationMinutes = typeChoExpirationMinutes,
+                                    getNoteApiKey = getNoteApiKey,
+                                    getNoteClientId = getNoteClientId,
+                                    getNoteTopicId = getNoteTopicId,
+                                )
+                            },
+                        )
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 )

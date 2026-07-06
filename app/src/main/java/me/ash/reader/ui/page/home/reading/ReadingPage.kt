@@ -152,7 +152,8 @@ fun ReadingPage(
                         onNavButtonClick = onNavAction,
                         onNavigateToStylePage = onNavigateToStylePage,
                         onTranslate = { viewModel.translateArticle() },
-                        readerState = readerState
+                        readerState = readerState,
+                        aiSummary = (summarizationState as? SummarizationState.Success)?.summary,
                     )
                 }
 
