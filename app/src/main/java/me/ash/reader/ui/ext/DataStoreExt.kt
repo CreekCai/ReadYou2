@@ -223,6 +223,11 @@ sealed interface PreferencesKey {
         const val codexTranslationModel = "codexTranslationModel"
         const val codexInsightModel = "codexInsightModel"
         const val openAiBaseUrl = "openAiBaseUrl"
+        const val ragflowBaseUrl = "ragflowBaseUrl"
+        const val ragflowApiKey = "ragflowApiKey"
+        const val ragflowDatasetId = "ragflowDatasetId"
+        const val ragflowChatId = "ragflowChatId"
+        const val offlineRetentionDays = "offlineRetentionDays"
 
         // TTS
         const val ttsConfig = "ttsConfig"
@@ -325,6 +330,11 @@ sealed interface PreferencesKey {
                 StringKey(codexTranslationModel),
                 StringKey(codexInsightModel),
                 StringKey(openAiBaseUrl),
+                StringKey(ragflowBaseUrl),
+                StringKey(ragflowApiKey),
+                StringKey(ragflowDatasetId),
+                StringKey(ragflowChatId),
+                IntKey(offlineRetentionDays),
                 // TTS
                 StringKey(ttsConfig),
                 BooleanKey(ttsReadAiSummaryOnly),
@@ -439,6 +449,11 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
         const val codexTranslationModel = "codexTranslationModel"
         const val codexInsightModel = "codexInsightModel"
         const val openAiBaseUrl = "openAiBaseUrl"
+        const val ragflowBaseUrl = "ragflowBaseUrl"
+        const val ragflowApiKey = "ragflowApiKey"
+        const val ragflowDatasetId = "ragflowDatasetId"
+        const val ragflowChatId = "ragflowChatId"
+        const val offlineRetentionDays = "offlineRetentionDays"
 
         // TTS
         const val ttsConfig = "ttsConfig"
@@ -637,6 +652,11 @@ data class DataStoreKey<T>(val key: Preferences.Key<T>, val type: Class<T>) {
                     DataStoreKey(stringPreferencesKey(codexInsightModel), String::class.java),
                 openAiBaseUrl to
                     DataStoreKey(stringPreferencesKey(openAiBaseUrl), String::class.java),
+                ragflowBaseUrl to DataStoreKey(stringPreferencesKey(ragflowBaseUrl), String::class.java),
+                ragflowApiKey to DataStoreKey(stringPreferencesKey(ragflowApiKey), String::class.java),
+                ragflowDatasetId to DataStoreKey(stringPreferencesKey(ragflowDatasetId), String::class.java),
+                ragflowChatId to DataStoreKey(stringPreferencesKey(ragflowChatId), String::class.java),
+                offlineRetentionDays to DataStoreKey(intPreferencesKey(offlineRetentionDays), Int::class.java),
                 // TTS
                 ttsConfig to
                     DataStoreKey(stringPreferencesKey(ttsConfig), String::class.java),

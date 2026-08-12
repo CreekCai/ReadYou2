@@ -297,6 +297,7 @@ interface ArticleDao {
         AND updateAt < :before
         AND isUnread = 0
         AND isStarred = 0
+        AND id NOT IN (SELECT articleId FROM offline_article)
         """
     )
     suspend fun deleteAllArchivedBeforeThan(
@@ -683,6 +684,20 @@ interface ArticleDao {
         """
     )
     suspend fun queryById(id: String): ArticleWithFeed?
+
+    @Transaction
+    @Query("SELECT * FROM article WHERE accountId = :accountId AND isStarred = 1 ORDER BY date DESC")
+    suspend fun queryAllStarred(accountId: Int): List<ArticleWithFeed>
+
+    @Transaction
+    @Query("SELECT * FROM article WHERE isStarred = 1 ORDER BY date DESC")
+    suspend fun queryAllStarred(): List<ArticleWithFeed>
+
+    @Query("SELECT COUNT(*) FROM article WHERE accountId = :accountId AND isStarred = 1")
+    fun observeStarredCount(accountId: Int): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM article WHERE isStarred = 1")
+    fun observeStarredCount(): Flow<Int>
 
 
     @Transaction

@@ -39,7 +39,10 @@ import me.ash.reader.domain.model.article.ArticleWithFeed
 import me.ash.reader.domain.repository.ArticleAiContentDao
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.general.MarkAsReadConditions
-import me.ash.reader.domain.service.ArticleInsightWorker
+import me.ash.reader.domain.service.OfflineArticleRepository
+import me.ash.reader.domain.service.OfflineArticleWorker
+import me.ash.reader.domain.service.RagflowSyncWorker
+import me.ash.reader.domain.repository.OfflineArticleDao
 import me.ash.reader.domain.service.GeminiService
 import me.ash.reader.domain.service.GoogleReaderRssService
 import me.ash.reader.domain.service.LocalRssService
@@ -77,6 +80,8 @@ constructor(
     private val geminiService: GeminiService,
     private val articleAiContentDao: ArticleAiContentDao,
     private val workManager: WorkManager,
+    offlineArticleDao: OfflineArticleDao,
+    private val offlineRepository: OfflineArticleRepository,
 ) : ViewModel() {
 
     private val _summarizationState = MutableStateFlow<SummarizationState>(SummarizationState.Idle)
@@ -85,8 +90,9 @@ constructor(
     private val _isSummaryVisible = MutableStateFlow(true)
     val isSummaryVisible: StateFlow<Boolean> = _isSummaryVisible.asStateFlow()
 
-    private val _insightState = MutableStateFlow<InsightState>(InsightState.Idle)
-    val insightState: StateFlow<InsightState> = _insightState.asStateFlow()
+    val offlineArticleIds = offlineArticleDao.observeIds().map { it.toSet() }.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet()
+    )
 
     private var summaryJob: Job? = null
 
@@ -171,29 +177,6 @@ constructor(
         }
     }
 
-    fun generateInsight() {
-        if (_insightState.value is InsightState.Loading) {
-            return
-        }
-
-        val articleId = readerStateStateFlow.value.articleId ?: return
-
-        viewModelScope.launch {
-            _insightState.value = InsightState.Loading
-            articleAiContentDao.upsert(
-                ArticleAiContent(
-                    articleId = articleId,
-                    type = ArticleAiContent.Type.INSIGHT,
-                    status = ArticleAiContent.Status.RUNNING,
-                    model = settingsProvider.settings.currentInsightModel(),
-                    prompt = settingsProvider.settings.geminiInsightPrompt,
-                    updatedAt = Date(),
-                )
-            )
-            ArticleInsightWorker.enqueue(workManager, articleId)
-        }
-    }
-
     fun clearSummarizationState() {
         val articleId = readerStateStateFlow.value.articleId
         summaryJob?.cancel()
@@ -203,19 +186,6 @@ constructor(
         if (articleId != null) {
             viewModelScope.launch {
                 articleAiContentDao.delete(articleId, ArticleAiContent.Type.SUMMARY)
-            }
-        }
-    }
-
-    fun clearInsightState() {
-        val articleId = readerStateStateFlow.value.articleId
-        if (articleId != null) {
-            ArticleInsightWorker.cancel(workManager, articleId)
-        }
-        _insightState.value = InsightState.Idle
-        if (articleId != null) {
-            viewModelScope.launch {
-                articleAiContentDao.delete(articleId, ArticleAiContent.Type.INSIGHT)
             }
         }
     }
@@ -315,8 +285,13 @@ constructor(
         applicationScope.launch(ioDispatcher) {
             if (articleId != null) {
                 rssService.get().markAsStarred(articleId = articleId, isStarred = isStarred)
+                RagflowSyncWorker.enqueue(workManager, articleId)
             }
         }
+    }
+
+    fun toggleOffline(articleId: String, isOffline: Boolean) {
+        OfflineArticleWorker.enqueue(workManager, articleId, remove = isOffline)
     }
 
     fun markAsReadFromListByDate(date: Date, isBefore: Boolean) {
@@ -429,7 +404,6 @@ constructor(
             aiContentJob?.cancel()
             _summarizationState.value = SummarizationState.Idle
             _isSummaryVisible.value = true
-            _insightState.value = InsightState.Idle
             observeAiContent(articleId)
 
             val snapshotList = articleListUseCase.itemSnapshotList
@@ -481,11 +455,11 @@ constructor(
         _readingUiState.update { ReadingUiState() }
         _readerState.update { ReaderState() }
         clearSummarizationState()
-        clearInsightState()
     }
 
     suspend fun ReaderState.renderContent(articleWithFeed: ArticleWithFeed): ReaderState {
-        val contentState =
+        val offline = offlineRepository.read(articleWithFeed.article.id)
+        val contentState = if (offline != null) ReaderState.FullContent(offline) else
             if (articleWithFeed.feed.isFullContent) {
                 val fullContent =
                     readerCacheHelper.readFullContent(articleWithFeed.article.id).getOrNull()
@@ -545,6 +519,7 @@ constructor(
             _readingUiState.update { it.copy(isStarred = isStarred) }
             currentArticle?.let {
                 rssService.get().markAsStarred(articleId = it.id, isStarred = isStarred)
+                RagflowSyncWorker.enqueue(workManager, it.id)
             }
         }
     }
@@ -556,14 +531,8 @@ constructor(
     private fun observeAiContent(articleId: String) {
         aiContentJob =
             viewModelScope.launch {
-                combine(
-                    articleAiContentDao.observe(articleId, ArticleAiContent.Type.SUMMARY),
-                    articleAiContentDao.observe(articleId, ArticleAiContent.Type.INSIGHT),
-                ) { summary, insight -> summary to insight }
-                    .collect { (summary, insight) ->
-                        _summarizationState.value = summary.toSummarizationState()
-                        _insightState.value = insight.toInsightState()
-                    }
+                articleAiContentDao.observe(articleId, ArticleAiContent.Type.SUMMARY)
+                    .collect { _summarizationState.value = it.toSummarizationState() }
             }
     }
 
@@ -630,13 +599,6 @@ sealed class SummarizationState {
     data class Error(val message: String) : SummarizationState()
 }
 
-sealed class InsightState {
-    object Idle : InsightState()
-    object Loading : InsightState()
-    data class Success(val insight: String) : InsightState()
-    data class Error(val message: String) : InsightState()
-}
-
 private fun ArticleAiContent?.toSummarizationState(): SummarizationState =
     when (this?.status) {
         ArticleAiContent.Status.RUNNING -> SummarizationState.Loading
@@ -646,25 +608,10 @@ private fun ArticleAiContent?.toSummarizationState(): SummarizationState =
         else -> SummarizationState.Idle
     }
 
-private fun ArticleAiContent?.toInsightState(): InsightState =
-    when (this?.status) {
-        ArticleAiContent.Status.RUNNING -> InsightState.Loading
-        ArticleAiContent.Status.SUCCESS -> content?.let { InsightState.Success(it) }
-            ?: InsightState.Idle
-        ArticleAiContent.Status.FAILED -> InsightState.Error(errorMessage ?: "Unknown error")
-        else -> InsightState.Idle
-    }
-
 private fun me.ash.reader.infrastructure.preference.Settings.currentSummaryModel(): String =
     when (aiProvider) {
         AiProviderPreference.OpenAI -> codexModel
         else -> geminiModel
-    }
-
-private fun me.ash.reader.infrastructure.preference.Settings.currentInsightModel(): String =
-    when (aiProvider) {
-        AiProviderPreference.OpenAI -> codexInsightModel
-        else -> geminiInsightModel
     }
 
 data class FlowUiState(val pagerData: PagerData, val nextFilterState: FilterState? = null)

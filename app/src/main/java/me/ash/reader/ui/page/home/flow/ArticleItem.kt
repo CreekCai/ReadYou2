@@ -23,6 +23,8 @@ import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.CheckCircleOutline
+import androidx.compose.material.icons.rounded.DownloadForOffline
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.FiberManualRecord
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
@@ -320,6 +322,8 @@ fun SwipeableArticleItem(
     onMarkAboveAsRead: ((ArticleWithFeed) -> Unit)? = null,
     onMarkBelowAsRead: ((ArticleWithFeed) -> Unit)? = null,
     onShare: ((ArticleWithFeed) -> Unit)? = null,
+    isOffline: Boolean = false,
+    onToggleOffline: ((ArticleWithFeed) -> Unit)? = null,
 ) {
 
     var isMenuExpanded by remember { mutableStateOf(false) }
@@ -381,6 +385,8 @@ fun SwipeableArticleItem(
                             onMarkAboveAsRead = onMarkAboveAsRead,
                             onMarkBelowAsRead = onMarkBelowAsRead,
                             onShare = onShare,
+                            isOffline = isOffline,
+                            onToggleOffline = onToggleOffline,
                         ) {
                             isMenuExpanded = false
                         }
@@ -571,6 +577,8 @@ fun ArticleItemMenuContent(
     onMarkAboveAsRead: ((ArticleWithFeed) -> Unit)? = null,
     onMarkBelowAsRead: ((ArticleWithFeed) -> Unit)? = null,
     onShare: ((ArticleWithFeed) -> Unit)? = null,
+    isOffline: Boolean = false,
+    onToggleOffline: ((ArticleWithFeed) -> Unit)? = null,
     onItemClick: (() -> Unit)? = null,
 ) {
     val starImageVector =
@@ -600,6 +608,13 @@ fun ArticleItemMenuContent(
             )
         },
     )
+    onToggleOffline?.let {
+        DropdownMenuItem(
+            text = { Text(if (isOffline) "移除离线文章" else "离线文章") },
+            onClick = { it(articleWithFeed); onItemClick?.invoke() },
+            leadingIcon = { Icon(if (isOffline) Icons.Rounded.DeleteOutline else Icons.Rounded.DownloadForOffline, null, Modifier.size(iconSize)) },
+        )
+    }
     DropdownMenuItem(
         text = { Text(text = starText) },
         onClick = {

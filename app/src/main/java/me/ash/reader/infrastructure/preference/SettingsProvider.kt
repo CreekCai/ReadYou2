@@ -154,14 +154,11 @@ class SettingsProvider @Inject constructor(
             LocalGeminiApiKey provides settings.geminiApiKey,
             LocalGeminiModel provides settings.geminiModel,
             LocalGeminiTranslationModel provides settings.geminiTranslationModel,
-            LocalGeminiInsightModel provides settings.geminiInsightModel,
             LocalGeminiPrompt provides settings.geminiPrompt,
             LocalGeminiTranslationPrompt provides settings.geminiTranslationPrompt,
-            LocalGeminiInsightPrompt provides settings.geminiInsightPrompt,
             LocalCodexApiKey provides settings.codexApiKey,
             LocalCodexModel provides settings.codexModel,
             LocalCodexTranslationModel provides settings.codexTranslationModel,
-            LocalCodexInsightModel provides settings.codexInsightModel,
             LocalOpenAiBaseUrl provides settings.openAiBaseUrl,
 
             // TTS

@@ -1,0 +1,103 @@
+package me.ash.reader.domain.service
+
+import java.security.MessageDigest
+import java.util.Date
+import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
+import me.ash.reader.domain.model.article.ArticleWithFeed
+import me.ash.reader.domain.model.article.RagflowDocument
+import me.ash.reader.domain.repository.RagflowDocumentDao
+import me.ash.reader.infrastructure.preference.SettingsProvider
+import me.ash.reader.infrastructure.di.IODispatcher
+import me.ash.reader.infrastructure.rss.ReaderCacheHelper
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import org.jsoup.Jsoup
+
+data class RagAnswer(val answer: String, val sessionId: String?, val sources: List<RagSource>)
+data class RagSource(val title: String, val url: String?, val content: String?)
+
+class RagflowRepository @Inject constructor(
+    private val client: OkHttpClient,
+    private val settingsProvider: SettingsProvider,
+    private val mappingDao: RagflowDocumentDao,
+    private val readerCache: ReaderCacheHelper,
+    @IODispatcher private val ioDispatcher: CoroutineDispatcher,
+) {
+    private val json = "application/json; charset=utf-8".toMediaType()
+
+    fun isConfigured() = settingsProvider.settings.run { ragflowBaseUrl.isNotBlank() && ragflowApiKey.isNotBlank() && ragflowDatasetId.isNotBlank() && ragflowChatId.isNotBlank() }
+
+    suspend fun sync(article: ArticleWithFeed) = withContext(ioDispatcher) {
+        if (!isConfigured()) return@withContext
+        val a = article.article
+        if (!a.isStarred) {
+            delete(a.id)
+            return@withContext
+        }
+        val html = readerCache.readOrFetchFullContent(a).getOrElse { a.rawDescription }
+        val markdown = "# ${a.title}\n\n来源：${article.feed.name}\n原文：${a.link}\n发布日期：${a.date}\n\n${Jsoup.parse(html).text()}"
+        val digest = MessageDigest.getInstance("SHA-256").digest(markdown.toByteArray()).joinToString("") { "%02x".format(it) }
+        val old = mappingDao.get(a.id)
+        if (old?.contentHash == digest && old.status == RagflowDocument.STATUS_SYNCED) return@withContext
+        old?.documentId?.let { deleteRemote(it) }
+        mappingDao.upsert(RagflowDocument(a.id, contentHash = digest, status = RagflowDocument.STATUS_PENDING))
+        var uploadedId: String? = null
+        runCatching {
+            val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+                .addFormDataPart("file", "${a.title.take(80)}.md", markdown.toRequestBody("text/markdown; charset=utf-8".toMediaType())).build()
+            val response = execute(Request.Builder().url(url("/api/v1/datasets/${settingsProvider.settings.ragflowDatasetId}/documents")).headers(auth()).post(body).build())
+            val data = JSONObject(response).optJSONArray("data") ?: error("RAGFlow 未返回文档")
+            val id = data.optJSONObject(0)?.optString("id").orEmpty()
+            require(id.isNotBlank()) { "RAGFlow 未返回文档 ID" }
+            uploadedId = id
+            mappingDao.upsert(RagflowDocument(a.id, id, digest, RagflowDocument.STATUS_PENDING))
+            val parseBody = JSONObject().put("document_ids", JSONArray().put(id)).toString().toRequestBody(json)
+            execute(Request.Builder().url(url("/api/v1/datasets/${settingsProvider.settings.ragflowDatasetId}/chunks")).headers(auth()).post(parseBody).build())
+            mappingDao.upsert(RagflowDocument(a.id, id, digest, RagflowDocument.STATUS_SYNCED, syncedAt = Date()))
+        }.onFailure { mappingDao.upsert(RagflowDocument(a.id, uploadedId, digest, RagflowDocument.STATUS_FAILED, errorMessage = it.message)) }.getOrThrow()
+    }
+
+    suspend fun delete(articleId: String) = withContext(ioDispatcher) {
+        mappingDao.get(articleId)?.documentId?.let { deleteRemote(it) }
+        mappingDao.delete(articleId)
+    }
+
+    suspend fun ask(question: String, sessionId: String?): RagAnswer = withContext(ioDispatcher) {
+        check(isConfigured()) { "请先在设置中完成 RAGFlow 配置" }
+        val payload = JSONObject().put("question", question).put("stream", false).apply { if (!sessionId.isNullOrBlank()) put("session_id", sessionId) }
+        val root = JSONObject(execute(Request.Builder().url(url("/api/v1/chats/${settingsProvider.settings.ragflowChatId}/completions")).headers(auth()).post(payload.toString().toRequestBody(json)).build()))
+        val data = root.optJSONObject("data") ?: root
+        val sources = mutableListOf<RagSource>()
+        val chunks = data.optJSONObject("reference")?.optJSONArray("chunks") ?: JSONArray()
+        for (i in 0 until chunks.length()) chunks.optJSONObject(i)?.let { sources += RagSource(it.optString("document_name", "参考文章"), it.optString("url").takeIf(String::isNotBlank), it.optString("content").takeIf(String::isNotBlank)) }
+        RagAnswer(data.optString("answer").ifBlank { error("RAGFlow 未返回答案") }, data.optString("session_id").takeIf(String::isNotBlank), sources.distinctBy { it.title })
+    }
+
+    suspend fun test(): Result<Unit> = withContext(ioDispatcher) { runCatching {
+        check(isConfigured()) { "请填写全部 RAGFlow 配置" }
+        execute(Request.Builder().url(url("/api/v1/datasets?id=${settingsProvider.settings.ragflowDatasetId}")).headers(auth()).get().build())
+        Unit
+    } }
+
+    private fun deleteRemote(id: String) {
+        if (!isConfigured()) return
+        val body = JSONObject().put("ids", JSONArray().put(id)).toString().toRequestBody(json)
+        execute(Request.Builder().url(url("/api/v1/datasets/${settingsProvider.settings.ragflowDatasetId}/documents")).headers(auth()).delete(body).build())
+    }
+    private fun url(path: String) = settingsProvider.settings.ragflowBaseUrl.trimEnd('/') + path
+    private fun auth() = okhttp3.Headers.Builder().add("Authorization", "Bearer ${settingsProvider.settings.ragflowApiKey}").build()
+    private fun execute(request: Request): String = client.newCall(request).execute().use { response ->
+        val value = response.body.string()
+        check(response.isSuccessful) { "RAGFlow HTTP ${response.code}: ${value.take(300)}" }
+        val code = runCatching { JSONObject(value).optInt("code") }.getOrDefault(0)
+        check(code == 0) { runCatching { JSONObject(value).optString("message") }.getOrDefault("RAGFlow 请求失败") }
+        value
+    }
+}

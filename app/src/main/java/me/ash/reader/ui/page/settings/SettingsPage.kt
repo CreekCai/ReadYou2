@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.TipsAndUpdates
 import androidx.compose.material.icons.outlined.TouchApp
+import androidx.compose.material.icons.outlined.DownloadForOffline
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +60,7 @@ fun SettingsPage(
     navigateToGeminiSettings: () -> Unit,
     navigateToShareSettings: () -> Unit,
     navigateToTtsSettings: () -> Unit,
+    navigateToOfflineSettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val newVersion = LocalNewVersionNumber.current
@@ -77,6 +79,14 @@ fun SettingsPage(
         },
         content = {
             LazyColumn {
+                item {
+                    SelectableSettingGroupItem(
+                        title = "离线内容",
+                        desc = "查看、保留和清理已下载的文章",
+                        icon = Icons.Outlined.DownloadForOffline,
+                        onClick = navigateToOfflineSettings,
+                    )
+                }
                 item {
                     DisplayText(text = stringResource(R.string.settings), desc = "")
                 }

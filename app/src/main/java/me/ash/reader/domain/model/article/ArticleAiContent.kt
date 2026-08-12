@@ -31,7 +31,6 @@ data class ArticleAiContent(
 ) {
     object Type {
         const val SUMMARY = "summary"
-        const val INSIGHT = "insight"
     }
 
     object Status {

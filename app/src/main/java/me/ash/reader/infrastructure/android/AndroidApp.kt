@@ -3,6 +3,7 @@ package me.ash.reader.infrastructure.android
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import androidx.work.WorkManager
 import coil.Coil
 import coil.ImageLoader
 import coil.ImageLoaderFactory
@@ -18,6 +19,8 @@ import kotlinx.coroutines.withContext
 import me.ash.reader.BuildConfig
 import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.AppService
+import me.ash.reader.domain.service.OfflineCleanupWorker
+import me.ash.reader.domain.service.RagflowBackfillWorker
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.di.ApplicationScope
 import me.ash.reader.infrastructure.di.IODispatcher
@@ -98,6 +101,11 @@ class AndroidApp : Application(), Configuration.Provider {
 
     private suspend fun workerInit() {
         rssService.get().get().initSync()
+        WorkManager.getInstance(this).also {
+            OfflineCleanupWorker.schedule(it)
+            RagflowBackfillWorker.enqueue(it)
+            RagflowBackfillWorker.schedule(it)
+        }
     }
 
     private suspend fun checkUpdate() {

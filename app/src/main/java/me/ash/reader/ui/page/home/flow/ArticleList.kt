@@ -29,6 +29,8 @@ fun LazyListScope.ArticleList(
     onMarkAboveAsRead: ((ArticleWithFeed) -> Unit)? = null,
     onMarkBelowAsRead: ((ArticleWithFeed) -> Unit)? = null,
     onShare: ((ArticleWithFeed) -> Unit)? = null,
+    offlineIds: Set<String> = emptySet(),
+    onToggleOffline: ((ArticleWithFeed) -> Unit)? = null,
 ) {
     // https://issuetracker.google.com/issues/193785330
     // FIXME: Using sticky header with paging-compose need to iterate through the entire list
@@ -57,6 +59,8 @@ fun LazyListScope.ArticleList(
                         onMarkBelowAsRead =
                             if (index == pagingItems.itemCount - 1) null else onMarkBelowAsRead,
                         onShare = onShare,
+                        isOffline = article.id in offlineIds,
+                        onToggleOffline = onToggleOffline,
                     )
                 }
 
@@ -91,6 +95,8 @@ fun LazyListScope.ArticleList(
                             onMarkBelowAsRead =
                                 if (index == pagingItems.itemCount - 1) null else onMarkBelowAsRead,
                             onShare = onShare,
+                            isOffline = article.id in offlineIds,
+                            onToggleOffline = onToggleOffline,
                         )
                     }
                 }

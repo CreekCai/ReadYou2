@@ -35,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.LargeTopAppBar
@@ -129,6 +130,7 @@ fun FlowPage(
     viewModel: ArticleListReaderViewModel,
     onNavigateUp: () -> Unit,
     navigateToArticle: (String, Int) -> Unit,
+    navigateToKnowledgeQa: () -> Unit,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val articleListTonalElevation = LocalFlowArticleListTonalElevation.current
@@ -157,6 +159,7 @@ fun FlowPage(
     val pullToSwitchFeed = settings.pullToSwitchFeed
 
     val flowUiState = viewModel.flowUiState.collectAsStateValue()
+    val offlineIds = viewModel.offlineArticleIds.collectAsStateValue()
     if (flowUiState == null) return
 
     val pagerData: PagerData = flowUiState.pagerData
@@ -419,6 +422,14 @@ fun FlowPage(
                             }
                         },
                         actions = {
+                            if (filterUiState.filter.isStarred()) {
+                                FeedbackIconButton(
+                                    imageVector = Icons.Rounded.AutoAwesome,
+                                    contentDescription = "星标知识库",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    onClick = navigateToKnowledgeQa,
+                                )
+                            }
                             RYExtensibleVisibility(visible = !filterUiState.filter.isStarred()) {
                                 FeedbackIconButton(
                                     imageVector = Icons.Rounded.DoneAll,
@@ -734,6 +745,8 @@ fun FlowPage(
                                 onMarkAboveAsRead = onMarkAboveAsRead,
                                 onMarkBelowAsRead = onMarkBelowAsRead,
                                 onShare = onShare,
+                                offlineIds = offlineIds,
+                                onToggleOffline = { viewModel.toggleOffline(it.article.id, it.article.id in offlineIds) },
                             )
                             item {
                                 Spacer(modifier = Modifier.height(128.dp))

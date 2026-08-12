@@ -30,9 +30,11 @@ import me.ash.reader.ui.page.adaptive.ArticleData
 import me.ash.reader.ui.page.adaptive.ArticleListReaderPage
 import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
 import me.ash.reader.ui.page.home.feeds.FeedsPage
+import me.ash.reader.ui.page.home.knowledge.KnowledgeQaPage
 import me.ash.reader.ui.page.home.feeds.subscribe.SubscribeViewModel
 import me.ash.reader.ui.page.nav3.key.Route
 import me.ash.reader.ui.page.settings.GeminiSettingsPage
+import me.ash.reader.ui.page.settings.OfflineSettingsPage
 import me.ash.reader.ui.page.settings.SettingsPage
 import me.ash.reader.ui.page.settings.ShareSettingsPage
 import me.ash.reader.ui.page.settings.accounts.AccountDetailsPage
@@ -151,6 +153,7 @@ fun AppEntry(backStack: NavBackStack<NavKey>) {
                                 viewModel = viewModel,
                                 onBack = onBack,
                                 onNavigateToStylePage = { backStack.add(Route.ReadingPageStyle) },
+                                onNavigateToKnowledgeQa = { backStack.add(Route.KnowledgeQa) },
                             )
                         }
                     }
@@ -159,6 +162,7 @@ fun AppEntry(backStack: NavBackStack<NavKey>) {
                             StartupPage(onNavigateToFeeds = { backStack.add(Route.Feeds) })
                         }
                     }
+                    Route.KnowledgeQa -> NavEntry(key) { KnowledgeQaPage(onBack = onBack) }
                     Route.Settings ->
                         NavEntry(key) {
                             SettingsPage(
@@ -174,6 +178,7 @@ fun AppEntry(backStack: NavBackStack<NavKey>) {
                                 navigateToGeminiSettings = { backStack.add(Route.GeminiSettings) },
                                 navigateToShareSettings = { backStack.add(Route.ShareSettings) },
                                 navigateToTtsSettings = { backStack.add(Route.TtsSettings) },
+                                navigateToOfflineSettings = { backStack.add(Route.OfflineSettings) },
                             )
                         }
                     Route.Accounts ->
@@ -260,6 +265,7 @@ fun AppEntry(backStack: NavBackStack<NavKey>) {
                         }
                     Route.LicenseList -> NavEntry(key) { LicenseListPage(onBack = onBack) }
                     Route.GeminiSettings -> NavEntry(key) { GeminiSettingsPage(onBack = onBack) }
+                    Route.OfflineSettings -> NavEntry(key) { OfflineSettingsPage(onBack = onBack, onOpenArticle = { backStack.add(Route.Reading(it)) }) }
                     Route.ShareSettings -> NavEntry(key) { ShareSettingsPage(onBack = onBack) }
                     Route.TtsSettings -> NavEntry(key) { TtsSettingsPage(onBack = onBack) }
                     else -> NavEntry(key) { throw Exception("Unknown destination") }

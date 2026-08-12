@@ -1,387 +1,61 @@
 package me.ash.reader.ui.page.settings
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import me.ash.reader.R
-import me.ash.reader.infrastructure.preference.AiProviderPreference
-import me.ash.reader.infrastructure.preference.CodexApiKeyPreference
-import me.ash.reader.infrastructure.preference.CodexInsightModelPreference
-import me.ash.reader.infrastructure.preference.CodexModelPreference
-import me.ash.reader.infrastructure.preference.CodexTranslationModelPreference
-import me.ash.reader.infrastructure.preference.GeminiApiKeyPreference
-import me.ash.reader.infrastructure.preference.GeminiModelPreference
-import me.ash.reader.infrastructure.preference.GeminiInsightModelPreference
-import me.ash.reader.infrastructure.preference.GeminiPromptPreference
-import me.ash.reader.infrastructure.preference.GeminiTranslationModelPreference
-import me.ash.reader.infrastructure.preference.GeminiTranslationPromptPreference
-import me.ash.reader.infrastructure.preference.GeminiInsightPromptPreference
-import me.ash.reader.infrastructure.preference.LocalAiProvider
-import me.ash.reader.infrastructure.preference.LocalCodexApiKey
-import me.ash.reader.infrastructure.preference.LocalCodexInsightModel
-import me.ash.reader.infrastructure.preference.LocalCodexModel
-import me.ash.reader.infrastructure.preference.LocalCodexTranslationModel
-import me.ash.reader.infrastructure.preference.LocalGeminiApiKey
-import me.ash.reader.infrastructure.preference.LocalGeminiModel
-import me.ash.reader.infrastructure.preference.LocalGeminiInsightModel
-import me.ash.reader.infrastructure.preference.LocalGeminiPrompt
-import me.ash.reader.infrastructure.preference.LocalGeminiTranslationModel
-import me.ash.reader.infrastructure.preference.LocalGeminiTranslationPrompt
-import me.ash.reader.infrastructure.preference.LocalGeminiInsightPrompt
-import me.ash.reader.infrastructure.preference.LocalOpenAiBaseUrl
-import me.ash.reader.infrastructure.preference.OpenAiBaseUrlPreference
-import me.ash.reader.ui.component.base.FeedbackIconButton
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.work.WorkManager
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import me.ash.reader.infrastructure.preference.*
+import me.ash.reader.domain.service.RagflowBackfillWorker
+import me.ash.reader.domain.service.RagflowRepository
+
+@HiltViewModel
+class AiSettingsViewModel @Inject constructor(private val ragflow: RagflowRepository, private val workManager: WorkManager) : ViewModel() {
+    private val _status = MutableStateFlow<String?>(null); val status = _status.asStateFlow()
+    fun test() = viewModelScope.launch { _status.value = "正在连接…"; _status.value = ragflow.test().fold({ "连接成功" }, { it.message ?: "连接失败" }) }
+    fun sync() { RagflowBackfillWorker.enqueue(workManager); _status.value = "已开始同步现有星标文章" }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GeminiSettingsPage(
-    onBack: () -> Unit,
-) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    
-    val aiProvider = LocalAiProvider.current
-    val apiKey = LocalGeminiApiKey.current
-    val codexApiKey = LocalCodexApiKey.current
-    val codexModel = LocalCodexModel.current
-    val codexTranslationModel = LocalCodexTranslationModel.current
-    val codexInsightModel = LocalCodexInsightModel.current
-    val openAiBaseUrl = LocalOpenAiBaseUrl.current
-    val model = LocalGeminiModel.current
-    val translationModel = LocalGeminiTranslationModel.current
-    val insightModel = LocalGeminiInsightModel.current
-    val prompt = LocalGeminiPrompt.current
-    val translationPrompt = LocalGeminiTranslationPrompt.current
-    val insightPrompt = LocalGeminiInsightPrompt.current
-
-    var expandedProvider by remember { mutableStateOf(false) }
-    
-    var apiKeyText by remember { mutableStateOf(apiKey) }
-    var codexApiKeyText by remember { mutableStateOf(codexApiKey) }
-    var codexModelText by remember { mutableStateOf(codexModel) }
-    var codexTranslationModelText by remember { mutableStateOf(codexTranslationModel) }
-    var codexInsightModelText by remember { mutableStateOf(codexInsightModel) }
-    var geminiModelText by remember { mutableStateOf(model) }
-    var geminiTranslationModelText by remember { mutableStateOf(translationModel) }
-    var geminiInsightModelText by remember { mutableStateOf(insightModel) }
-    var promptState by remember { mutableStateOf(TextFieldValue(prompt, TextRange(prompt.length))) }
-    var translationPromptState by remember { mutableStateOf(TextFieldValue(translationPrompt, TextRange(translationPrompt.length))) }
-    var insightPromptState by remember { mutableStateOf(TextFieldValue(insightPrompt, TextRange(insightPrompt.length))) }
-
-    LaunchedEffect(prompt) {
-        if (promptState.text != prompt) {
-            promptState = promptState.copy(text = prompt, selection = TextRange(prompt.length))
-        }
-    }
-
-    LaunchedEffect(apiKey) {
-        if (apiKeyText != apiKey) {
-            apiKeyText = apiKey
-        }
-    }
-
-    LaunchedEffect(codexApiKey) {
-        if (codexApiKeyText != codexApiKey) {
-            codexApiKeyText = codexApiKey
-        }
-    }
-
-    LaunchedEffect(codexModel) {
-        if (codexModelText != codexModel) {
-            codexModelText = codexModel
-        }
-    }
-
-    LaunchedEffect(codexTranslationModel) {
-        if (codexTranslationModelText != codexTranslationModel) {
-            codexTranslationModelText = codexTranslationModel
-        }
-    }
-
-    LaunchedEffect(codexInsightModel) {
-        if (codexInsightModelText != codexInsightModel) {
-            codexInsightModelText = codexInsightModel
-        }
-    }
-
-    LaunchedEffect(model) {
-        if (geminiModelText != model) {
-            geminiModelText = model
-        }
-    }
-
-    LaunchedEffect(translationModel) {
-        if (geminiTranslationModelText != translationModel) {
-            geminiTranslationModelText = translationModel
-        }
-    }
-
-    LaunchedEffect(insightModel) {
-        if (geminiInsightModelText != insightModel) {
-            geminiInsightModelText = insightModel
-        }
-    }
-
-    LaunchedEffect(translationPrompt) {
-        if (translationPromptState.text != translationPrompt) {
-            translationPromptState = translationPromptState.copy(text = translationPrompt, selection = TextRange(translationPrompt.length))
-        }
-    }
-
-    LaunchedEffect(insightPrompt) {
-        if (insightPromptState.text != insightPrompt) {
-            insightPromptState = insightPromptState.copy(text = insightPrompt, selection = TextRange(insightPrompt.length))
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.gemini_ai)) },
-                navigationIcon = {
-                    FeedbackIconButton(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(R.string.back),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        onClick = onBack
-                    )
-                }
-            )
-        },
-        content = { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .imePadding()
-            ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    item {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = stringResource(R.string.ai_settings_page_desc),
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(bottom = 16.dp)
-                            )
-
-                            ExposedDropdownMenuBox(
-                                expanded = expandedProvider,
-                                onExpandedChange = { expandedProvider = !expandedProvider }
-                            ) {
-                                OutlinedTextField(
-                                    value = aiProvider.title,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text(stringResource(R.string.ai_provider)) },
-                                    trailingIcon = {
-                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProvider)
-                                    },
-                                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = expandedProvider,
-                                    onDismissRequest = { expandedProvider = false }
-                                ) {
-                                    AiProviderPreference.values.forEach { provider ->
-                                        DropdownMenuItem(
-                                            text = { Text(provider.title) },
-                                            onClick = {
-                                                provider.put(context, coroutineScope)
-                                                expandedProvider = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            OutlinedTextField(
-                                value =
-                                    when (aiProvider) {
-                                        AiProviderPreference.OpenAI -> codexApiKeyText
-                                        else -> apiKeyText
-                                    },
-                                onValueChange = {
-                                    when (aiProvider) {
-                                        AiProviderPreference.OpenAI -> {
-                                            codexApiKeyText = it
-                                            CodexApiKeyPreference.put(context, coroutineScope, it)
-                                        }
-                                        else -> {
-                                            apiKeyText = it
-                                            GeminiApiKeyPreference.put(context, coroutineScope, it)
-                                        }
-                                    }
-                                },
-                                label = { Text("${aiProvider.title} ${stringResource(R.string.api_key)}") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            if (aiProvider == AiProviderPreference.OpenAI) {
-                                OutlinedTextField(
-                                    value = openAiBaseUrl,
-                                    onValueChange = {
-                                        OpenAiBaseUrlPreference.put(context, coroutineScope, it)
-                                    },
-                                    label = { Text(stringResource(R.string.openai_base_url)) },
-                                    supportingText = { Text(OpenAiBaseUrlPreference.default) },
-                                    trailingIcon = {
-                                        TextButton(
-                                            onClick = {
-                                                OpenAiBaseUrlPreference.reset(context, coroutineScope)
-                                            }
-                                        ) {
-                                            Text(stringResource(R.string.reset))
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                OutlinedTextField(
-                                    value = codexModelText,
-                                    onValueChange = {
-                                        codexModelText = it
-                                        CodexModelPreference.put(context, coroutineScope, it)
-                                    },
-                                    label = { Text(stringResource(R.string.openai_summarization_model)) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                OutlinedTextField(
-                                    value = codexTranslationModelText,
-                                    onValueChange = {
-                                        codexTranslationModelText = it
-                                        CodexTranslationModelPreference.put(context, coroutineScope, it)
-                                    },
-                                    label = { Text(stringResource(R.string.openai_translation_model)) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                OutlinedTextField(
-                                    value = codexInsightModelText,
-                                    onValueChange = {
-                                        codexInsightModelText = it
-                                        CodexInsightModelPreference.put(context, coroutineScope, it)
-                                    },
-                                    label = { Text(stringResource(R.string.openai_insight_model)) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            } else {
-                                OutlinedTextField(
-                                    value = geminiModelText,
-                                    onValueChange = {
-                                        geminiModelText = it
-                                        GeminiModelPreference.put(context, coroutineScope, it)
-                                    },
-                                    label = { Text(stringResource(R.string.summarization_model)) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                OutlinedTextField(
-                                    value = geminiTranslationModelText,
-                                    onValueChange = {
-                                        geminiTranslationModelText = it
-                                        GeminiTranslationModelPreference.put(context, coroutineScope, it)
-                                    },
-                                    label = { Text(stringResource(R.string.translation_model)) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                OutlinedTextField(
-                                    value = geminiInsightModelText,
-                                    onValueChange = {
-                                        geminiInsightModelText = it
-                                        GeminiInsightModelPreference.put(context, coroutineScope, it)
-                                    },
-                                    label = { Text(stringResource(R.string.insight_model)) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            OutlinedTextField(
-                                value = promptState,
-                                onValueChange = {
-                                    promptState = it
-                                    GeminiPromptPreference.put(context, coroutineScope, it.text)
-                                },
-                                label = { Text(stringResource(R.string.summarization_prompt)) },
-                                minLines = 3,
-                                maxLines = 5,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            OutlinedTextField(
-                                value = translationPromptState,
-                                onValueChange = {
-                                    translationPromptState = it
-                                    GeminiTranslationPromptPreference.put(context, coroutineScope, it.text)
-                                },
-                                label = { Text(stringResource(R.string.translation_prompt)) },
-                                minLines = 3,
-                                maxLines = 5,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            OutlinedTextField(
-                                value = insightPromptState,
-                                onValueChange = {
-                                    insightPromptState = it
-                                    GeminiInsightPromptPreference.put(context, coroutineScope, it.text)
-                                },
-                                label = { Text(stringResource(R.string.insight_prompt)) },
-                                minLines = 3,
-                                maxLines = 5,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
+fun GeminiSettingsPage(onBack: () -> Unit, viewModel: AiSettingsViewModel = hiltViewModel()) {
+    val context = LocalContext.current; val scope = rememberCoroutineScope(); val settings = LocalSettings.current
+    val status by viewModel.status.collectAsState()
+    var providerExpanded by remember { mutableStateOf(false) }
+    Scaffold(topBar = { TopAppBar(title = { Text("大模型与知识库") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } }) }) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            item { Text("摘要与翻译", style = MaterialTheme.typography.titleMedium) }
+            item { ExposedDropdownMenuBox(providerExpanded, { providerExpanded = !providerExpanded }) { OutlinedTextField(settings.aiProvider.title, {}, readOnly = true, label = { Text("AI 服务商") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(providerExpanded) }, modifier = Modifier.menuAnchor().fillMaxWidth()); ExposedDropdownMenu(providerExpanded, { providerExpanded = false }) { AiProviderPreference.values.forEach { provider -> DropdownMenuItem({ Text(provider.title) }, { provider.put(context, scope); providerExpanded = false }) } } } }
+            if (settings.aiProvider == AiProviderPreference.OpenAI) {
+                item { OutlinedTextField(settings.openAiBaseUrl, { OpenAiBaseUrlPreference.put(context, scope, it) }, label = { Text("OpenAI Base URL") }, modifier = Modifier.fillMaxWidth()) }
+                item { OutlinedTextField(settings.codexApiKey, { CodexApiKeyPreference.put(context, scope, it) }, label = { Text("OpenAI API Key") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth()) }
+                item { OutlinedTextField(settings.codexModel, { CodexModelPreference.put(context, scope, it) }, label = { Text("摘要模型") }, modifier = Modifier.fillMaxWidth()) }
+                item { OutlinedTextField(settings.codexTranslationModel, { CodexTranslationModelPreference.put(context, scope, it) }, label = { Text("翻译模型") }, modifier = Modifier.fillMaxWidth()) }
+            } else {
+                item { OutlinedTextField(settings.geminiApiKey, { GeminiApiKeyPreference.put(context, scope, it) }, label = { Text("Gemini API Key") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth()) }
+                item { OutlinedTextField(settings.geminiModel, { GeminiModelPreference.put(context, scope, it) }, label = { Text("摘要模型") }, modifier = Modifier.fillMaxWidth()) }
+                item { OutlinedTextField(settings.geminiTranslationModel, { GeminiTranslationModelPreference.put(context, scope, it) }, label = { Text("翻译模型") }, modifier = Modifier.fillMaxWidth()) }
             }
+            item { HorizontalDivider(); Spacer(Modifier.height(8.dp)); Text("RAGFlow 星标知识库", style = MaterialTheme.typography.titleMedium); Text("向量化、关联检索与上下文管理均由 RAGFlow 服务端完成。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { OutlinedTextField(settings.ragflowBaseUrl, { RagflowBaseUrlPreference.put(context, scope, it) }, label = { Text("RAGFlow 地址") }, placeholder = { Text("https://rag.example.com") }, modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(settings.ragflowApiKey, { RagflowApiKeyPreference.put(context, scope, it) }, label = { Text("API 密钥") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(settings.ragflowDatasetId, { RagflowDatasetIdPreference.put(context, scope, it) }, label = { Text("数据集 ID") }, modifier = Modifier.fillMaxWidth()) }
+            item { OutlinedTextField(settings.ragflowChatId, { RagflowChatIdPreference.put(context, scope, it) }, label = { Text("对话助手 ID") }, modifier = Modifier.fillMaxWidth()) }
+            item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { OutlinedButton(onClick = viewModel::test) { Text("测试连接") }; Button(onClick = viewModel::sync) { Text("同步现有星标文章") } }; status?.let { Text(it, color = MaterialTheme.colorScheme.primary) } }
         }
-    )
+    }
 }

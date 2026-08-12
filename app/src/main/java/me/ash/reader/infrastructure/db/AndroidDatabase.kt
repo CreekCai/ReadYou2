@@ -9,6 +9,8 @@ import me.ash.reader.domain.model.account.security.DESUtils
 import me.ash.reader.domain.model.article.ArchivedArticle
 import me.ash.reader.domain.model.article.Article
 import me.ash.reader.domain.model.article.ArticleAiContent
+import me.ash.reader.domain.model.article.OfflineArticle
+import me.ash.reader.domain.model.article.RagflowDocument
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
 import me.ash.reader.domain.repository.AccountDao
@@ -16,6 +18,8 @@ import me.ash.reader.domain.repository.ArticleAiContentDao
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
+import me.ash.reader.domain.repository.OfflineArticleDao
+import me.ash.reader.domain.repository.RagflowDocumentDao
 import me.ash.reader.infrastructure.preference.*
 import me.ash.reader.ui.ext.toInt
 import java.util.*
@@ -28,8 +32,10 @@ import java.util.*
         Group::class,
         ArchivedArticle::class,
         ArticleAiContent::class,
+        OfflineArticle::class,
+        RagflowDocument::class,
     ],
-    version = 8,
+    version = 9,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 5, to = 7),
@@ -53,6 +59,8 @@ abstract class AndroidDatabase : RoomDatabase() {
     abstract fun articleDao(): ArticleDao
     abstract fun articleAiContentDao(): ArticleAiContentDao
     abstract fun groupDao(): GroupDao
+    abstract fun offlineArticleDao(): OfflineArticleDao
+    abstract fun ragflowDocumentDao(): RagflowDocumentDao
 
     companion object {
 
@@ -91,6 +99,7 @@ val allMigrations = arrayOf(
     MIGRATION_3_4,
     MIGRATION_4_5,
     MIGRATION_7_8,
+    MIGRATION_8_9,
 )
 
 @Suppress("ClassName")
@@ -198,5 +207,37 @@ object MIGRATION_7_8 : Migration(7, 8) {
             ON article_ai_content(articleId)
             """.trimIndent()
         )
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_8_9 : Migration(8, 9) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS offline_article (
+                articleId TEXT NOT NULL PRIMARY KEY,
+                accountId INTEGER NOT NULL,
+                contentPath TEXT NOT NULL,
+                savedAt INTEGER NOT NULL,
+                sizeBytes INTEGER NOT NULL,
+                status INTEGER NOT NULL,
+                errorMessage TEXT,
+                FOREIGN KEY(articleId) REFERENCES article(id) ON UPDATE CASCADE ON DELETE CASCADE
+            )
+        """.trimIndent())
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_offline_article_accountId ON offline_article(accountId)")
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS ragflow_document (
+                articleId TEXT NOT NULL PRIMARY KEY,
+                documentId TEXT,
+                contentHash TEXT NOT NULL,
+                status INTEGER NOT NULL,
+                errorMessage TEXT,
+                syncedAt INTEGER NOT NULL,
+                FOREIGN KEY(articleId) REFERENCES article(id) ON UPDATE CASCADE ON DELETE CASCADE
+            )
+        """.trimIndent())
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_ragflow_document_articleId ON ragflow_document(articleId)")
+        database.execSQL("DELETE FROM article_ai_content WHERE type = 'insight'")
     }
 }

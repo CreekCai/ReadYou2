@@ -11,6 +11,8 @@ import me.ash.reader.domain.repository.ArticleAiContentDao
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
+import me.ash.reader.domain.repository.OfflineArticleDao
+import me.ash.reader.domain.repository.RagflowDocumentDao
 import me.ash.reader.infrastructure.db.AndroidDatabase
 import javax.inject.Singleton
 
@@ -50,6 +52,14 @@ object DatabaseModule {
     @Singleton
     fun provideAccountDao(androidDatabase: AndroidDatabase): AccountDao =
         androidDatabase.accountDao()
+
+    @Provides @Singleton
+    fun provideOfflineArticleDao(androidDatabase: AndroidDatabase): OfflineArticleDao =
+        androidDatabase.offlineArticleDao()
+
+    @Provides @Singleton
+    fun provideRagflowDocumentDao(androidDatabase: AndroidDatabase): RagflowDocumentDao =
+        androidDatabase.ragflowDocumentDao()
 
     @Provides
     @Singleton

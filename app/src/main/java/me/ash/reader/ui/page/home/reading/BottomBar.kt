@@ -19,11 +19,9 @@ import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.automirrored.rounded.Article
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.FiberManualRecord
 import androidx.compose.material.icons.outlined.Headphones
-import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarOutline
@@ -57,7 +55,6 @@ fun BottomBar(
     isFullContent: Boolean,
     isBoldCharacters: Boolean,
     isSummarized: Boolean,
-    isInsightShown: Boolean,
     ttsButton: @Composable () -> Unit,
     onUnread: (isUnread: Boolean) -> Unit = {},
     onStarred: (isStarred: Boolean) -> Unit = {},
@@ -67,8 +64,6 @@ fun BottomBar(
     onReadAloud: () -> Unit = {},
     onSummarize: () -> Unit = {},
     onClearSummary: () -> Unit = {},
-    onInsight: () -> Unit = {},
-    onClearInsight: () -> Unit = {},
 ) {
     val tonalElevation = LocalReadingPageTonalElevation.current
     val isOutlined = tonalElevation == ReadingPageTonalElevationPreference.Outlined
@@ -105,29 +100,6 @@ fun BottomBar(
                         horizontalArrangement = Arrangement.SpaceAround,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        CanBeDisabledIconButton(
-                            modifier = Modifier.size(40.dp),
-                            disabled = false,
-                            imageVector = if (isInsightShown) {
-                                Icons.Filled.Lightbulb
-                            } else {
-                                Icons.Outlined.Lightbulb
-                            },
-                            contentDescription = "Insight",
-                            tint = if (isInsightShown) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.outline
-                            },
-                            onClick = {
-                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                onInsight()
-                            },
-                            onLongClick = {
-                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                                onClearInsight()
-                            },
-                        )
                         CanBeDisabledIconButton(
                             modifier = Modifier.size(40.dp),
                             disabled = false,

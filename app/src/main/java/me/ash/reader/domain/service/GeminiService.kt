@@ -75,31 +75,6 @@ class GeminiService @Inject constructor(
         renderer.render(document)
     }
 
-    suspend fun generateInsight(content: String): String = withContext(ioDispatcher) {
-        val insightText =
-            when (settingsProvider.settings.aiProvider) {
-                AiProviderPreference.OpenAI ->
-                    generateCodexContent(
-                        modelName = settingsProvider.settings.codexInsightModel,
-                        apiKey = settingsProvider.settings.codexApiKey,
-                        baseUrl = settingsProvider.settings.openAiBaseUrl,
-                        prompt = settingsProvider.settings.geminiInsightPrompt,
-                        content = content,
-                        fallback = "No insight generated.",
-                    )
-                else ->
-                    generateGeminiContent(
-                        modelName = settingsProvider.settings.geminiInsightModel,
-                        apiKey = settingsProvider.settings.geminiApiKey,
-                        prompt = settingsProvider.settings.geminiInsightPrompt,
-                        content = content,
-                        fallback = "No insight generated.",
-                    )
-            }
-        val document = parser.parse(insightText)
-        renderer.render(document)
-    }
-
     private suspend fun generateGeminiContent(
         modelName: String,
         apiKey: String,

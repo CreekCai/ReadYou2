@@ -149,7 +149,7 @@ fun Content(
                             headline()
                         }
                         
-                        // AI summary and insight cards
+                        // AI summary card
                         if (isSummaryVisible && summarizationState !is SummarizationState.Idle) {
                              item {
                                 Surface(

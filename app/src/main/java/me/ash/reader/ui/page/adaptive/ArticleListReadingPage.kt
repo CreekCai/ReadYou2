@@ -42,7 +42,6 @@ import me.ash.reader.ui.component.reader.ExpandedContentWidth
 import me.ash.reader.ui.component.reader.LocalTextContentWidth
 import me.ash.reader.ui.component.reader.MediumContentWidth
 import me.ash.reader.ui.page.home.flow.FlowPage
-import me.ash.reader.ui.page.home.reading.ArticleInsightPage
 import me.ash.reader.ui.page.home.reading.ReadingPage
 import timber.log.Timber
 
@@ -59,6 +58,7 @@ fun ArticleListReaderPage(
     viewModel: ArticleListReaderViewModel,
     onBack: () -> Unit,
     onNavigateToStylePage: () -> Unit,
+    onNavigateToKnowledgeQa: () -> Unit,
 ) {
 
     val scope = rememberCoroutineScope()
@@ -99,7 +99,6 @@ fun ArticleListReaderPage(
         }
 
     var listAlpha by rememberSaveable { mutableFloatStateOf(1f) }
-    var showInsightPage by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
 
     LaunchedEffect(isTwoPane) {
         Timber.d("isTwoPane: $isTwoPane")
@@ -155,6 +154,7 @@ fun ArticleListReaderPage(
                                     )
                                 }
                             },
+                            navigateToKnowledgeQa = onNavigateToKnowledgeQa,
                         )
                     }
                 }
@@ -167,7 +167,6 @@ fun ArticleListReaderPage(
             ) {
                 val contentKey = navigator.currentDestination?.contentKey
                 LaunchedEffect(contentKey) {
-                    showInsightPage = false
                     if (contentKey == null) {
                         delay(100L)
                         viewModel.clearReadingData()
@@ -180,16 +179,7 @@ fun ArticleListReaderPage(
                 }
 
                 CompositionLocalProvider(LocalTextContentWidth provides animatedContentWidth) {
-                    BackHandler(enabled = showInsightPage) {
-                        showInsightPage = false
-                    }
-                    if (showInsightPage) {
-                        ArticleInsightPage(
-                            viewModel = viewModel,
-                            onBack = { showInsightPage = false },
-                        )
-                    } else {
-                        ReadingPage(
+                    ReadingPage(
                             viewModel = viewModel,
                             navigationAction = navigationAction,
                             onLoadArticle = { id, index ->
@@ -225,9 +215,7 @@ fun ArticleListReaderPage(
                                 }
                             },
                             onNavigateToStylePage = onNavigateToStylePage,
-                            onNavigateToInsight = { showInsightPage = true },
                         )
-                    }
                 }
             }
         },

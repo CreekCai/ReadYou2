@@ -64,7 +64,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import me.ash.reader.ui.page.adaptive.SummarizationState
-import me.ash.reader.ui.page.adaptive.InsightState
 import me.ash.reader.infrastructure.preference.LocalSharedContent
 import me.ash.reader.infrastructure.preference.LocalTtsReadAiSummaryOnly
 import androidx.compose.foundation.layout.padding
@@ -93,7 +92,6 @@ fun ReadingPage(
     onLoadArticle: (String, Int) -> Unit,
     onNavAction: (NavigationAction) -> Unit,
     onNavigateToStylePage: () -> Unit,
-    onNavigateToInsight: () -> Unit,
 ) {
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
@@ -107,7 +105,6 @@ fun ReadingPage(
     
     val summarizationState = viewModel.summarizationState.collectAsStateValue()
     val isSummaryVisible = viewModel.isSummaryVisible.collectAsStateValue()
-    val insightState = viewModel.insightState.collectAsStateValue()
     val ttsContent =
         if (ttsReadAiSummaryOnly && summarizationState is SummarizationState.Success) {
             (summarizationState as SummarizationState.Success).summary
@@ -333,7 +330,6 @@ fun ReadingPage(
                                 readerState.content is ReaderState.Error,
                         isBoldCharacters = boldCharacters.value,
                         isSummarized = summarizationState !is SummarizationState.Idle,
-                        isInsightShown = insightState !is InsightState.Idle,
                         onUnread = { viewModel.updateReadStatus(it) },
                         onStarred = { viewModel.updateStarredStatus(it) },
                         onNextArticle = {
@@ -381,8 +377,6 @@ fun ReadingPage(
                         },
                         onSummarize = { viewModel.summarizeArticle() },
                         onClearSummary = { viewModel.clearSummarizationState() },
-                        onInsight = onNavigateToInsight,
-                        onClearInsight = { viewModel.clearInsightState() },
                     )
                 }
             }
