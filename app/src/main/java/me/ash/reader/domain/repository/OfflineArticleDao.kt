@@ -21,6 +21,12 @@ interface OfflineArticleDao {
     @Query("SELECT articleId FROM offline_article WHERE status = 1")
     fun observeIds(): Flow<List<String>>
 
+    @Query("SELECT * FROM offline_article WHERE accountId = :accountId ORDER BY savedAt DESC")
+    fun observeEntries(accountId: Int): Flow<List<OfflineArticle>>
+
+    @Query("SELECT * FROM offline_article")
+    fun observeAllEntries(): Flow<List<OfflineArticle>>
+
     @Transaction
     @Query("SELECT article.* FROM article INNER JOIN offline_article ON article.id = offline_article.articleId WHERE article.accountId = :accountId AND offline_article.status = 1 ORDER BY offline_article.savedAt DESC")
     fun observeArticles(accountId: Int): Flow<List<ArticleWithFeed>>

@@ -24,11 +24,14 @@ import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material.icons.rounded.DownloadForOffline
+import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.FiberManualRecord
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
@@ -60,6 +63,7 @@ import coil.size.Precision
 import coil.size.Scale
 import me.ash.reader.R
 import me.ash.reader.domain.model.article.ArticleWithFeed
+import me.ash.reader.domain.model.article.OfflineArticle
 import me.ash.reader.infrastructure.preference.FlowArticleListDescPreference
 import me.ash.reader.infrastructure.preference.FlowArticleReadIndicatorPreference
 import me.ash.reader.infrastructure.preference.LocalArticleListSwipeEndAction
@@ -92,6 +96,7 @@ fun ArticleItem(
     modifier: Modifier = Modifier,
     articleWithFeed: ArticleWithFeed,
     isUnread: Boolean = articleWithFeed.article.isUnread,
+    offlineStatus: Int? = null,
     onClick: (ArticleWithFeed) -> Unit = {},
     onLongClick: (() -> Unit)? = null,
 ) {
@@ -108,6 +113,7 @@ fun ArticleItem(
         imgData = article.img,
         isStarred = article.isStarred,
         isUnread = isUnread,
+        offlineStatus = offlineStatus,
         onClick = { onClick(articleWithFeed) },
         onLongClick = onLongClick,
     )
@@ -125,6 +131,7 @@ fun ArticleItem(
     imgData: Any? = null,
     isStarred: Boolean = false,
     isUnread: Boolean = false,
+    offlineStatus: Int? = null,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
 ) {
@@ -215,7 +222,7 @@ fun ArticleItem(
             }
 
             // Right
-
+            OfflineStatusIcon(offlineStatus)
         }
 
         // Bottom
@@ -306,6 +313,28 @@ fun StarredIcon(modifier: Modifier = Modifier) {
     )
 }
 
+@Composable
+private fun OfflineStatusIcon(status: Int?) {
+    when (status) {
+        OfflineArticle.STATUS_SAVING -> CircularProgressIndicator(
+            modifier = Modifier.size(14.dp),
+            strokeWidth = 2.dp,
+        )
+        OfflineArticle.STATUS_AVAILABLE -> Icon(
+            imageVector = Icons.Rounded.DownloadDone,
+            contentDescription = "已离线",
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(16.dp),
+        )
+        OfflineArticle.STATUS_FAILED -> Icon(
+            imageVector = Icons.Rounded.ErrorOutline,
+            contentDescription = "离线保存失败",
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(16.dp),
+        )
+    }
+}
+
 private const val PositionalThresholdFraction = 0.4f
 private const val SwipeActionDelay = 300L
 
@@ -323,6 +352,7 @@ fun SwipeableArticleItem(
     onMarkBelowAsRead: ((ArticleWithFeed) -> Unit)? = null,
     onShare: ((ArticleWithFeed) -> Unit)? = null,
     isOffline: Boolean = false,
+    offlineStatus: Int? = null,
     onToggleOffline: ((ArticleWithFeed) -> Unit)? = null,
 ) {
 
@@ -365,6 +395,7 @@ fun SwipeableArticleItem(
             ArticleItem(
                 articleWithFeed = articleWithFeed,
                 isUnread = isUnread,
+                offlineStatus = offlineStatus,
                 onClick = onClick,
                 onLongClick = onLongClick,
             )
@@ -386,6 +417,7 @@ fun SwipeableArticleItem(
                             onMarkBelowAsRead = onMarkBelowAsRead,
                             onShare = onShare,
                             isOffline = isOffline,
+                            offlineStatus = offlineStatus,
                             onToggleOffline = onToggleOffline,
                         ) {
                             isMenuExpanded = false
@@ -578,6 +610,7 @@ fun ArticleItemMenuContent(
     onMarkBelowAsRead: ((ArticleWithFeed) -> Unit)? = null,
     onShare: ((ArticleWithFeed) -> Unit)? = null,
     isOffline: Boolean = false,
+    offlineStatus: Int? = null,
     onToggleOffline: ((ArticleWithFeed) -> Unit)? = null,
     onItemClick: (() -> Unit)? = null,
 ) {
@@ -610,9 +643,24 @@ fun ArticleItemMenuContent(
     )
     onToggleOffline?.let {
         DropdownMenuItem(
-            text = { Text(if (isOffline) "移除离线文章" else "离线文章") },
+            text = {
+                Text(
+                    when (offlineStatus) {
+                        OfflineArticle.STATUS_SAVING -> "正在保存离线文章…"
+                        OfflineArticle.STATUS_FAILED -> "重试保存离线文章"
+                        else -> if (isOffline) "移除离线文章" else "离线文章"
+                    }
+                )
+            },
             onClick = { it(articleWithFeed); onItemClick?.invoke() },
-            leadingIcon = { Icon(if (isOffline) Icons.Rounded.DeleteOutline else Icons.Rounded.DownloadForOffline, null, Modifier.size(iconSize)) },
+            enabled = offlineStatus != OfflineArticle.STATUS_SAVING,
+            leadingIcon = {
+                when (offlineStatus) {
+                    OfflineArticle.STATUS_SAVING -> CircularProgressIndicator(Modifier.size(iconSize), strokeWidth = 2.dp)
+                    OfflineArticle.STATUS_FAILED -> Icon(Icons.Rounded.ErrorOutline, null, Modifier.size(iconSize))
+                    else -> Icon(if (isOffline) Icons.Rounded.DeleteOutline else Icons.Rounded.DownloadForOffline, null, Modifier.size(iconSize))
+                }
+            },
         )
     }
     DropdownMenuItem(

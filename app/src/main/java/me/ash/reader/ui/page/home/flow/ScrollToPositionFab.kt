@@ -2,6 +2,7 @@ package me.ash.reader.ui.page.home.flow
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.padding
@@ -27,10 +28,12 @@ fun ScrollToLastReadFab(visible: Boolean, modifier: Modifier = Modifier, onClick
     AnimatedVisibility(
         visible = visible,
         enter = scaleIn(
+            initialScale = 0.92f,
             transformOrigin = CenterBottom,
             animationSpec = MaterialTheme.motionScheme.fastSpatialSpec()
-        ),
+        ) + fadeIn(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()),
         exit = scaleOut(
+            targetScale = 0.92f,
             transformOrigin = CenterBottom,
             animationSpec = MaterialTheme.motionScheme.fastSpatialSpec()
         ) + fadeOut(
@@ -57,10 +60,12 @@ fun ScrollToTopFab(visible: Boolean, modifier: Modifier = Modifier, onClick: () 
     AnimatedVisibility(
         visible = visible,
         enter = scaleIn(
+            initialScale = 0.92f,
             transformOrigin = CenterBottom,
             animationSpec = MaterialTheme.motionScheme.fastSpatialSpec()
-        ),
+        ) + fadeIn(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()),
         exit = scaleOut(
+            targetScale = 0.92f,
             transformOrigin = CenterBottom,
             animationSpec = MaterialTheme.motionScheme.fastSpatialSpec()
         ) + fadeOut(

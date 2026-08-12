@@ -93,6 +93,9 @@ constructor(
     val offlineArticleIds = offlineArticleDao.observeIds().map { it.toSet() }.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet()
     )
+    val offlineArticleStates = offlineArticleDao.observeAllEntries()
+        .map { entries -> entries.associate { it.articleId to it.status } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private var summaryJob: Job? = null
 

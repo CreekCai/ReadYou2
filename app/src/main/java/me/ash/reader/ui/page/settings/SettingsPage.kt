@@ -80,14 +80,6 @@ fun SettingsPage(
         content = {
             LazyColumn {
                 item {
-                    SelectableSettingGroupItem(
-                        title = "离线内容",
-                        desc = "查看、保留和清理已下载的文章",
-                        icon = Icons.Outlined.DownloadForOffline,
-                        onClick = navigateToOfflineSettings,
-                    )
-                }
-                item {
                     DisplayText(text = stringResource(R.string.settings), desc = "")
                 }
                 item {
@@ -128,6 +120,14 @@ fun SettingsPage(
                         desc = stringResource(R.string.gemini_ai_desc),
                         icon = Icons.Outlined.AutoAwesome,
                         onClick = navigateToGeminiSettings
+                    )
+                }
+                item {
+                    SelectableSettingGroupItem(
+                        title = "离线内容",
+                        desc = "查看、保留和清理已下载的文章",
+                        icon = Icons.Outlined.DownloadForOffline,
+                        onClick = navigateToOfflineSettings,
                     )
                 }
                 item {

@@ -1,14 +1,16 @@
 package me.ash.reader.ui.page.home.reading
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -43,7 +45,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import me.ash.reader.R
@@ -64,7 +65,7 @@ import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.page.adaptive.NavigationAction
 import me.ash.reader.ui.page.adaptive.ReaderState
 
-private val sizeSpec = spring<IntSize>(stiffness = 700f)
+private val toolbarEaseOut = CubicBezierEasing(0.23f, 1f, 0.32f, 1f)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,7 +80,6 @@ fun TopBar(
     onNavigateToStylePage: () -> Unit,
     onTranslate: () -> Unit,
     readerState: ReaderState,
-    aiSummary: String? = null,
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -113,8 +113,14 @@ fun TopBar(
             )
             AnimatedVisibility(
                 visible = isShow,
-                enter = expandVertically(expandFrom = Alignment.Bottom, animationSpec = sizeSpec),
-                exit = shrinkVertically(shrinkTowards = Alignment.Bottom, animationSpec = sizeSpec),
+                enter = slideInVertically(
+                    initialOffsetY = { -it },
+                    animationSpec = tween(160, easing = toolbarEaseOut),
+                ) + fadeIn(animationSpec = tween(120)),
+                exit = slideOutVertically(
+                    targetOffsetY = { -it },
+                    animationSpec = tween(120, easing = toolbarEaseOut),
+                ) + fadeOut(animationSpec = tween(100)),
             ) {
                 TopAppBar(
                     title = {},
@@ -172,19 +178,6 @@ fun TopBar(
                             size = 20.dp,
                             contentDescription = stringResource(R.string.share),
                             tint = MaterialTheme.colorScheme.onSurface,
-                            onLongClick = {
-                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                                if (aiSummary.isNullOrBlank()) {
-                                    context.showToast("暂无 AI Summary")
-                                } else {
-                                    val clipboard =
-                                        context.getSystemService(ClipboardManager::class.java)
-                                    clipboard.setPrimaryClip(
-                                        ClipData.newPlainText("AI Summary", aiSummary)
-                                    )
-                                    context.showToast("AI Summary 已复制")
-                                }
-                            },
                             onClick = {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 sharedContent.share(

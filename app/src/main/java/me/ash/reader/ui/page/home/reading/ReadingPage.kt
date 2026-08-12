@@ -23,6 +23,8 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -114,6 +116,7 @@ fun ReadingPage(
 
     var isReaderScrollingDown by remember { mutableStateOf(false) }
     var showFullScreenImageViewer by remember { mutableStateOf(false) }
+    var showClearSummaryConfirmation by remember { mutableStateOf(false) }
 
     var currentImageData by remember { mutableStateOf(ImageData()) }
 
@@ -150,7 +153,6 @@ fun ReadingPage(
                         onNavigateToStylePage = onNavigateToStylePage,
                         onTranslate = { viewModel.translateArticle() },
                         readerState = readerState,
-                        aiSummary = (summarizationState as? SummarizationState.Success)?.summary,
                     )
                 }
 
@@ -307,6 +309,7 @@ fun ReadingPage(
                                             },
                                             summarizationState = summarizationState,
                                             isSummaryVisible = isSummaryVisible,
+                                            onClearSummary = { showClearSummaryConfirmation = true },
                                         )
                                         PullToLoadIndicator(
                                             state = state,
@@ -376,12 +379,27 @@ fun ReadingPage(
                             )
                         },
                         onSummarize = { viewModel.summarizeArticle() },
-                        onClearSummary = { viewModel.clearSummarizationState() },
                     )
                 }
             }
         },
     )
+    if (showClearSummaryConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showClearSummaryConfirmation = false },
+            title = { Text("清除 AI 摘要？") },
+            text = { Text("清除后可以重新生成摘要。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.clearSummarizationState()
+                    showClearSummaryConfirmation = false
+                }) { Text("清除") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearSummaryConfirmation = false }) { Text("取消") }
+            },
+        )
+    }
     if (showFullScreenImageViewer) {
 
         ReaderImageViewer(

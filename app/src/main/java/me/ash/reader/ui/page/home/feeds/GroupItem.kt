@@ -74,7 +74,7 @@ fun GroupItem(
             Row(
                 modifier = Modifier
                     .padding(end = 20.dp)
-                    .size(24.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .clickable { onExpanded() },

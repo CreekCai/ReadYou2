@@ -30,6 +30,7 @@ fun LazyListScope.ArticleList(
     onMarkBelowAsRead: ((ArticleWithFeed) -> Unit)? = null,
     onShare: ((ArticleWithFeed) -> Unit)? = null,
     offlineIds: Set<String> = emptySet(),
+    offlineStates: Map<String, Int> = emptyMap(),
     onToggleOffline: ((ArticleWithFeed) -> Unit)? = null,
 ) {
     // https://issuetracker.google.com/issues/193785330
@@ -60,6 +61,7 @@ fun LazyListScope.ArticleList(
                             if (index == pagingItems.itemCount - 1) null else onMarkBelowAsRead,
                         onShare = onShare,
                         isOffline = article.id in offlineIds,
+                        offlineStatus = offlineStates[article.id],
                         onToggleOffline = onToggleOffline,
                     )
                 }
@@ -96,6 +98,7 @@ fun LazyListScope.ArticleList(
                                 if (index == pagingItems.itemCount - 1) null else onMarkBelowAsRead,
                             onShare = onShare,
                             isOffline = article.id in offlineIds,
+                            offlineStatus = offlineStates[article.id],
                             onToggleOffline = onToggleOffline,
                         )
                     }

@@ -1,8 +1,11 @@
 package me.ash.reader.ui.page.home.reading
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +21,11 @@ import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,6 +47,7 @@ import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.component.webview.RYWebView
 import me.ash.reader.ui.ext.extractDomain
 import me.ash.reader.ui.ext.roundClick
+import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.page.adaptive.SummarizationState
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -58,6 +67,7 @@ fun Content(
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     summarizationState: SummarizationState = SummarizationState.Idle,
     isSummaryVisible: Boolean = true,
+    onClearSummary: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val subheadUpperCase = LocalReadingSubheadUpperCase.current
@@ -66,6 +76,15 @@ fun Content(
     val textContentWidth = LocalTextContentWidth.current
     val maxWidthModifier = Modifier.widthIn(max = textContentWidth)
     val uriHandler = LocalUriHandler.current
+    val summary = (summarizationState as? SummarizationState.Success)?.summary
+    val copySummary = {
+        summary?.let {
+            context.getSystemService(ClipboardManager::class.java)
+                .setPrimaryClip(ClipData.newPlainText("AI Summary", it))
+            context.showToast("AI 摘要已复制")
+        }
+        Unit
+    }
 
     val headline =
         @Composable {
@@ -89,8 +108,10 @@ fun Content(
                 title = "AI Summary",
                 visible = isSummaryVisible && summarizationState !is SummarizationState.Idle,
                 loading = summarizationState is SummarizationState.Loading,
-                content = (summarizationState as? SummarizationState.Success)?.summary,
+                content = summary,
                 error = (summarizationState as? SummarizationState.Error)?.message,
+                onCopy = copySummary,
+                onClear = onClearSummary,
             )
         }
 
@@ -162,11 +183,10 @@ fun Content(
                                     tonalElevation = 2.dp
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(
-                                            text = "AI Summary",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        SummaryHeader(
+                                            canCopy = summary != null,
+                                            onCopy = copySummary,
+                                            onClear = onClearSummary,
                                         )
                                         when (summarizationState) {
                                             is SummarizationState.Loading -> LoadingIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally))
@@ -233,6 +253,8 @@ private fun AiContentCard(
     loading: Boolean,
     content: String?,
     error: String?,
+    onCopy: () -> Unit,
+    onClear: () -> Unit,
 ) {
     AnimatedVisibility(visible = visible) {
         Surface(
@@ -245,11 +267,11 @@ private fun AiContentCard(
             tonalElevation = 2.dp,
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 8.dp),
+                SummaryHeader(
+                    title = title,
+                    canCopy = content != null,
+                    onCopy = onCopy,
+                    onClear = onClear,
                 )
                 when {
                     loading -> LoadingIndicator(
@@ -267,6 +289,29 @@ private fun AiContentCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SummaryHeader(
+    title: String = "AI Summary",
+    canCopy: Boolean,
+    onCopy: () -> Unit,
+    onClear: () -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(enabled = canCopy, onClick = onCopy) {
+            Icon(Icons.Rounded.ContentCopy, "复制 AI 摘要")
+        }
+        IconButton(onClick = onClear) {
+            Icon(Icons.Rounded.Close, "清除 AI 摘要")
         }
     }
 }

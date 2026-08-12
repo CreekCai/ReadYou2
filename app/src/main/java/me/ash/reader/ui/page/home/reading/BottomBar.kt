@@ -2,9 +2,12 @@ package me.ash.reader.ui.page.home.reading
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import me.ash.reader.R
@@ -44,7 +46,7 @@ import me.ash.reader.infrastructure.preference.ReadingRendererPreference
 import me.ash.reader.ui.component.base.CanBeDisabledIconButton
 import me.ash.reader.ui.component.webview.BoldCharactersIcon
 
-private val sizeSpec = spring<IntSize>(stiffness = 700f)
+private val toolbarEaseOut = CubicBezierEasing(0.23f, 1f, 0.32f, 1f)
 
 @Composable
 fun BottomBar(
@@ -63,7 +65,6 @@ fun BottomBar(
     onBoldCharacters: () -> Unit = {},
     onReadAloud: () -> Unit = {},
     onSummarize: () -> Unit = {},
-    onClearSummary: () -> Unit = {},
 ) {
     val tonalElevation = LocalReadingPageTonalElevation.current
     val isOutlined = tonalElevation == ReadingPageTonalElevationPreference.Outlined
@@ -77,8 +78,14 @@ fun BottomBar(
     ) {
         AnimatedVisibility(
             visible = isShow,
-            enter = expandVertically(expandFrom = Alignment.Top, animationSpec = sizeSpec),
-            exit = shrinkVertically(shrinkTowards = Alignment.Top, animationSpec = sizeSpec)
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(160, easing = toolbarEaseOut),
+            ) + fadeIn(animationSpec = tween(120)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(120, easing = toolbarEaseOut),
+            ) + fadeOut(animationSpec = tween(100)),
         ) {
             val view = LocalView.current
             Column {
@@ -136,10 +143,6 @@ fun BottomBar(
                             onClick = {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 onSummarize()
-                            },
-                            onLongClick = {
-                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                                onClearSummary()
                             },
                         )
                         CanBeDisabledIconButton(

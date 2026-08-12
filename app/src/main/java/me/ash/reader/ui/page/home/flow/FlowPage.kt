@@ -107,6 +107,7 @@ import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
 import me.ash.reader.ui.component.scrollbar.scrollIndicator
 import me.ash.reader.ui.ext.collectAsStateValue
 import me.ash.reader.ui.ext.openURL
+import me.ash.reader.ui.ext.showToast
 import me.ash.reader.ui.motion.Direction
 import me.ash.reader.ui.motion.sharedXAxisTransitionSlow
 import me.ash.reader.ui.motion.sharedYAxisTransitionExpressive
@@ -160,6 +161,7 @@ fun FlowPage(
 
     val flowUiState = viewModel.flowUiState.collectAsStateValue()
     val offlineIds = viewModel.offlineArticleIds.collectAsStateValue()
+    val offlineStates = viewModel.offlineArticleStates.collectAsStateValue()
     if (flowUiState == null) return
 
     val pagerData: PagerData = flowUiState.pagerData
@@ -429,8 +431,7 @@ fun FlowPage(
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     onClick = navigateToKnowledgeQa,
                                 )
-                            }
-                            RYExtensibleVisibility(visible = !filterUiState.filter.isStarred()) {
+                            } else {
                                 FeedbackIconButton(
                                     imageVector = Icons.Rounded.DoneAll,
                                     contentDescription = stringResource(R.string.mark_all_as_read),
@@ -746,7 +747,12 @@ fun FlowPage(
                                 onMarkBelowAsRead = onMarkBelowAsRead,
                                 onShare = onShare,
                                 offlineIds = offlineIds,
-                                onToggleOffline = { viewModel.toggleOffline(it.article.id, it.article.id in offlineIds) },
+                                offlineStates = offlineStates,
+                                onToggleOffline = {
+                                    val isOffline = it.article.id in offlineIds
+                                    viewModel.toggleOffline(it.article.id, isOffline)
+                                    context.showToast(if (isOffline) "已开始移除离线内容" else "已开始保存离线文章")
+                                },
                             )
                             item {
                                 Spacer(modifier = Modifier.height(128.dp))
