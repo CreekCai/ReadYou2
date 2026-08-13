@@ -1,8 +1,17 @@
 package me.ash.reader.ui.page.home.knowledge
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.StartOffsetType
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,6 +32,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.ArrowForward
@@ -51,8 +62,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
@@ -71,6 +87,7 @@ fun KnowledgeQaPage(
     val messages = viewModel.messages.collectAsStateValue()
     val loading = viewModel.loading.collectAsStateValue()
     val suggestions = viewModel.suggestions.collectAsStateValue()
+    val suggestionsLoading = viewModel.suggestionsLoading.collectAsStateValue()
     val count = viewModel.starredCount.collectAsStateValue()
     val pageBackground = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
         Color.Black
@@ -154,6 +171,7 @@ fun KnowledgeQaPage(
             KnowledgeEmptyState(
                 count = count,
                 suggestions = suggestions,
+                suggestionsLoading = suggestionsLoading,
                 onAsk = viewModel::ask,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
@@ -169,6 +187,7 @@ fun KnowledgeQaPage(
                         item = item,
                         count = count,
                         onRetry = { viewModel.retry(index) },
+                        onSave = { viewModel.save(index) },
                     )
                 }
                 item(key = "answer-end") { Spacer(Modifier.height(1.dp)) }
@@ -181,6 +200,7 @@ fun KnowledgeQaPage(
 private fun KnowledgeEmptyState(
     count: Int,
     suggestions: List<String>,
+    suggestionsLoading: Boolean,
     onAsk: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -223,17 +243,39 @@ private fun KnowledgeEmptyState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
             )
-            suggestions.forEachIndexed { index, suggestion ->
-                SuggestionRow(
-                    number = index + 1,
-                    text = suggestion,
-                    onClick = { onAsk(suggestion) },
-                )
-                if (index != suggestions.lastIndex) HorizontalDivider()
+            val textMeasurer = rememberTextMeasurer()
+            val density = LocalDensity.current
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val textStyle = MaterialTheme.typography.bodyMedium
+                val availableTextWidth = (maxWidth - 60.dp).coerceAtLeast(0.dp)
+                val visibleSuggestions = remember(suggestions, availableTextWidth, textStyle) {
+                    suggestions.filter { question ->
+                        !textMeasurer.measure(
+                            text = question,
+                            style = textStyle,
+                            maxLines = 3,
+                            constraints = Constraints(
+                                maxWidth = with(density) { availableTextWidth.roundToPx() },
+                            ),
+                        ).hasVisualOverflow
+                    }
+                }
+                Column {
+                    visibleSuggestions.forEachIndexed { index, suggestion ->
+                        SuggestionRow(
+                            number = index + 1,
+                            text = suggestion,
+                            onClick = { onAsk(suggestion) },
+                        )
+                        if (index != visibleSuggestions.lastIndex) HorizontalDivider()
+                    }
+                }
             }
+        } else if (count > 0 && suggestionsLoading) {
+            ThinkingIndicator(label = "正在理解知识库")
         } else if (count > 0) {
             Text(
-                "星标文章同步完成后，这里会出现为你生成的探索问题。",
+                "暂时没有生成合适的探索问题，你仍然可以直接向知识库提问。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -250,9 +292,9 @@ private fun SuggestionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .heightIn(min = 48.dp)
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .padding(vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -263,7 +305,7 @@ private fun SuggestionRow(
         )
         Text(
             text,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
         )
         Spacer(Modifier.width(12.dp))
@@ -281,6 +323,7 @@ private fun KnowledgeExchange(
     item: QaMessage,
     count: Int,
     onRetry: () -> Unit,
+    onSave: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         Row(
@@ -344,10 +387,56 @@ private fun KnowledgeExchange(
                     Spacer(Modifier.height(22.dp))
                     KnowledgeSources(item.sources)
                 }
+                if (item.isComplete) {
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = onSave, enabled = !item.isSaved) {
+                        Icon(
+                            if (item.isSaved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkAdd,
+                            contentDescription = null,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (item.isSaved) "已保存" else "保存回答")
+                    }
+                }
             }
             else -> {
-                Text("正在思考中", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ThinkingIndicator()
             }
+        }
+    }
+}
+
+@Composable
+private fun ThinkingIndicator(label: String = "正在思考中") {
+    val transition = rememberInfiniteTransition(label = "thinking")
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        repeat(3) { index ->
+            val alpha by transition.animateFloat(
+                initialValue = 0.28f,
+                targetValue = 0.78f,
+                animationSpec = infiniteRepeatable(
+                    animation = keyframes {
+                        durationMillis = 900
+                        0.28f at 0
+                        0.78f at 300
+                        0.28f at 600
+                        0.28f at 900
+                    },
+                    repeatMode = RepeatMode.Restart,
+                    initialStartOffset = StartOffset(index * 150, StartOffsetType.Delay),
+                ),
+                label = "thinking-dot-$index",
+            )
+            Box(
+                Modifier
+                    .size(5.dp)
+                    .graphicsLayer { this.alpha = alpha }
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+            )
         }
     }
 }

@@ -22,6 +22,7 @@ sealed interface Route : NavKey {
     }
 
     @Serializable data object KnowledgeQa : Route
+    @Serializable data object SavedKnowledge : Route
 
     // Settings
     @Serializable data object Settings : Route

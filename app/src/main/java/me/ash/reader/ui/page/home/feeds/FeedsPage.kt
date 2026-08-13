@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.UnfoldLess
 import androidx.compose.material.icons.rounded.UnfoldMore
+import androidx.compose.material.icons.rounded.Bookmarks
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -71,6 +72,7 @@ import me.ash.reader.infrastructure.preference.LocalNewVersionNumber
 import me.ash.reader.infrastructure.preference.LocalSkipVersionNumber
 import me.ash.reader.ui.component.FilterBar
 import me.ash.reader.ui.component.base.DisplayText
+import me.ash.reader.ui.component.base.Banner
 import me.ash.reader.ui.component.base.FeedbackIconButton
 import me.ash.reader.ui.component.base.RYScaffold
 import me.ash.reader.ui.component.scrollbar.drawVerticalScrollIndicator
@@ -100,6 +102,7 @@ fun FeedsPage(
     navigationToFlow: () -> Unit,
     navigateToAccountList: () -> Unit,
     navigateToAccountDetail: (Int) -> Unit,
+    navigateToSavedKnowledge: () -> Unit,
 ) {
     var accountTabVisible by remember { mutableStateOf(false) }
 
@@ -243,6 +246,17 @@ fun FeedsPage(
                         ) {
                             feedsViewModel.changeFilter(filterState.copy(group = null, feed = null))
                             navigationToFlow()
+                        }
+                    }
+                    if (filterState.filter.isStarred()) {
+                        item {
+                            Spacer(Modifier.height(12.dp))
+                            Banner(
+                                title = "已保存的知识库回答",
+                                desc = "查看你保存的问题与答案",
+                                icon = Icons.Rounded.Bookmarks,
+                                onClick = navigateToSavedKnowledge,
+                            )
                         }
                     }
 

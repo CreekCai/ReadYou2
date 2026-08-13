@@ -43,8 +43,8 @@ android {
         applicationId = "me.ash.reader"
         minSdk = 26
         targetSdk = 34
-        versionCode = 81
-        versionName = "0.17.26"
+        versionCode = 82
+        versionName = "0.17.27"
 
         buildConfigField(
             "String",
@@ -206,6 +206,7 @@ dependencies {
 
     // Markdown
     implementation(libs.commonmark)
+    implementation(libs.commonmark.ext.gfm.tables)
 
     // Testing
     testImplementation(libs.junit)

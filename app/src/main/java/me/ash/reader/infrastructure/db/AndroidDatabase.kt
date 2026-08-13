@@ -11,6 +11,7 @@ import me.ash.reader.domain.model.article.Article
 import me.ash.reader.domain.model.article.ArticleAiContent
 import me.ash.reader.domain.model.article.OfflineArticle
 import me.ash.reader.domain.model.article.RagflowDocument
+import me.ash.reader.domain.model.article.SavedKnowledgeAnswer
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
 import me.ash.reader.domain.repository.AccountDao
@@ -20,6 +21,7 @@ import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
 import me.ash.reader.domain.repository.OfflineArticleDao
 import me.ash.reader.domain.repository.RagflowDocumentDao
+import me.ash.reader.domain.repository.SavedKnowledgeAnswerDao
 import me.ash.reader.infrastructure.preference.*
 import me.ash.reader.ui.ext.toInt
 import java.util.*
@@ -34,8 +36,9 @@ import java.util.*
         ArticleAiContent::class,
         OfflineArticle::class,
         RagflowDocument::class,
+        SavedKnowledgeAnswer::class,
     ],
-    version = 9,
+    version = 10,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 5, to = 7),
@@ -61,6 +64,7 @@ abstract class AndroidDatabase : RoomDatabase() {
     abstract fun groupDao(): GroupDao
     abstract fun offlineArticleDao(): OfflineArticleDao
     abstract fun ragflowDocumentDao(): RagflowDocumentDao
+    abstract fun savedKnowledgeAnswerDao(): SavedKnowledgeAnswerDao
 
     companion object {
 
@@ -100,6 +104,7 @@ val allMigrations = arrayOf(
     MIGRATION_4_5,
     MIGRATION_7_8,
     MIGRATION_8_9,
+    MIGRATION_9_10,
 )
 
 @Suppress("ClassName")
@@ -239,5 +244,24 @@ object MIGRATION_8_9 : Migration(8, 9) {
         """.trimIndent())
         database.execSQL("CREATE INDEX IF NOT EXISTS index_ragflow_document_articleId ON ragflow_document(articleId)")
         database.execSQL("DELETE FROM article_ai_content WHERE type = 'insight'")
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_9_10 : Migration(9, 10) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS saved_knowledge_answer (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                accountId INTEGER NOT NULL,
+                question TEXT NOT NULL,
+                answer TEXT NOT NULL,
+                createdAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_knowledge_answer_accountId ON saved_knowledge_answer(accountId)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_knowledge_answer_createdAt ON saved_knowledge_answer(createdAt)")
     }
 }

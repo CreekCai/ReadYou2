@@ -13,6 +13,7 @@ import me.ash.reader.domain.repository.FeedDao
 import me.ash.reader.domain.repository.GroupDao
 import me.ash.reader.domain.repository.OfflineArticleDao
 import me.ash.reader.domain.repository.RagflowDocumentDao
+import me.ash.reader.domain.repository.SavedKnowledgeAnswerDao
 import me.ash.reader.infrastructure.db.AndroidDatabase
 import javax.inject.Singleton
 
@@ -60,6 +61,10 @@ object DatabaseModule {
     @Provides @Singleton
     fun provideRagflowDocumentDao(androidDatabase: AndroidDatabase): RagflowDocumentDao =
         androidDatabase.ragflowDocumentDao()
+
+    @Provides @Singleton
+    fun provideSavedKnowledgeAnswerDao(androidDatabase: AndroidDatabase): SavedKnowledgeAnswerDao =
+        androidDatabase.savedKnowledgeAnswerDao()
 
     @Provides
     @Singleton

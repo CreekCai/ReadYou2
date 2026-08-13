@@ -31,6 +31,7 @@ import me.ash.reader.ui.page.adaptive.ArticleListReaderPage
 import me.ash.reader.ui.page.adaptive.ArticleListReaderViewModel
 import me.ash.reader.ui.page.home.feeds.FeedsPage
 import me.ash.reader.ui.page.home.knowledge.KnowledgeQaPage
+import me.ash.reader.ui.page.home.knowledge.SavedKnowledgePage
 import me.ash.reader.ui.page.home.feeds.subscribe.SubscribeViewModel
 import me.ash.reader.ui.page.nav3.key.Route
 import me.ash.reader.ui.page.settings.GeminiSettingsPage
@@ -126,6 +127,7 @@ fun AppEntry(backStack: NavBackStack<NavKey>) {
                                 navigateToAccountDetail = {
                                     backStack.add(Route.AccountDetails(it))
                                 },
+                                navigateToSavedKnowledge = { backStack.add(Route.SavedKnowledge) },
                             )
                         }
                     }
@@ -163,6 +165,7 @@ fun AppEntry(backStack: NavBackStack<NavKey>) {
                         }
                     }
                     Route.KnowledgeQa -> NavEntry(key) { KnowledgeQaPage(onBack = onBack) }
+                    Route.SavedKnowledge -> NavEntry(key) { SavedKnowledgePage(onBack = onBack) }
                     Route.Settings ->
                         NavEntry(key) {
                             SettingsPage(

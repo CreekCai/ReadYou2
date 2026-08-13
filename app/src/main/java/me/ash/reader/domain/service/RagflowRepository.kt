@@ -125,6 +125,8 @@ class RagflowRepository @Inject constructor(
             check(response.isSuccessful) { "RAGFlow HTTP ${response.code}" }
             val body = response.body
             var latest = RagAnswer("", sessionId, emptyList())
+            var rawAnswer = ""
+            var isThinking = false
             while (!body.source().exhausted()) {
                 val line = body.source().readUtf8Line()?.trim().orEmpty()
                 if (!line.startsWith("data:")) continue
@@ -136,11 +138,25 @@ class RagflowRepository @Inject constructor(
                 val data = root.optJSONObject("data") ?: continue
                 val answer = data.optString("answer")
                 val sources = sourcesFrom(data)
+                if (data.optBoolean("start_to_think")) isThinking = true
+                val answerDelta = when {
+                    answer.isBlank() -> ""
+                    answer.startsWith(rawAnswer) -> answer.removePrefix(rawAnswer)
+                    rawAnswer.startsWith(answer) -> ""
+                    else -> answer
+                }
+                rawAnswer = when {
+                    answer.isBlank() -> rawAnswer
+                    answer.startsWith(rawAnswer) -> answer
+                    rawAnswer.startsWith(answer) -> rawAnswer
+                    else -> rawAnswer + answer
+                }
+                val visibleDelta = if (isThinking) "" else answerDelta
+                if (data.optBoolean("end_to_think")) isThinking = false
                 latest = RagAnswer(
                     answer = when {
-                        answer.isBlank() -> latest.answer
-                        answer.startsWith(latest.answer) -> answer
-                        else -> latest.answer + answer
+                        visibleDelta.isBlank() -> latest.answer
+                        else -> latest.answer + visibleDelta
                     },
                     sessionId = data.optString("session_id").takeIf(String::isNotBlank)
                         ?: latest.sessionId,
@@ -157,19 +173,16 @@ class RagflowRepository @Inject constructor(
         }
     }
 
-    suspend fun suggestQuestions(titles: List<String>): Result<List<String>> = runCatching {
-        if (titles.isEmpty()) return@runCatching emptyList()
-        val catalog = titles.joinToString("\n") { "- $it" }
+    suspend fun suggestQuestions(): Result<List<String>> = runCatching {
         val prompt = """
-            请根据知识库内容和下面这组从全部星标文章中随机抽取的标题，洞察用户长期的关注点、
-            实际需求、知识缺口、潜在决策和可能想继续探索的问题。
+            请先检索并综合理解当前知识库中的全部星标文章。基于实际检索到的内容，洞察用户长期的
+            关注点、实际需求、知识缺口、潜在决策，以及用户接下来最可能想探索的问题。
 
             生成 12 个互不重复、能够跨多篇文章检索回答的问题。问题应覆盖主题脉络、观点冲突、
             趋势变化、证据可靠性、知识缺口和可执行建议，避免只询问某一篇文章的摘要。
+            每个问题必须包含知识库中实际出现的具体主题、概念、人物、项目或观点；禁止生成脱离
+            知识库内容的通用问题。如果检索证据不足，就少生成，不要用泛化问题补足数量。
             只输出问题，每行一个，不要编号、解释、分类或展示思考过程。
-
-            星标文章标题：
-            $catalog
         """.trimIndent()
         ask(prompt, sessionId = null).answer
             .lineSequence()
@@ -188,7 +201,7 @@ class RagflowRepository @Inject constructor(
 
     private fun removeReasoning(answer: String): String {
         var visible = answer
-        val completedBlocks = listOf("think", "thinking", "reasoning")
+        val completedBlocks = listOf("think", "thinking", "reasoning", "retrieving")
         completedBlocks.forEach { tag ->
             visible = visible.replace(
                 Regex("(?is)<$tag(?:\\s[^>]*)?>.*?</$tag>"),
@@ -200,7 +213,20 @@ class RagflowRepository @Inject constructor(
             )
         }
         return visible
-            .replace(Regex("(?is)</?(?:think|thinking|reasoning)(?:\\s[^>]*)?>"), "")
+            .replace(Regex("(?is)</?(?:think|thinking|reasoning|retrieving)(?:\\s[^>]*)?>"), "")
+            .replace(
+                Regex(
+                    "(?is)^\\s*(?:#{1,6}\\s*)?(?:思考过程|思考|推理过程|推理|分析过程|Reasoning|Thought Process)\\s*[:：]?\\s*.*?(?=^\\s*(?:#{1,6}\\s*)?(?:最终答案|回答|Final Answer|Answer)\\s*[:：]?\\s*)",
+                    setOf(RegexOption.MULTILINE),
+                ),
+                "",
+            )
+            .replace(
+                Regex(
+                    "(?im)^\\s*(?:#{1,6}\\s*)?(?:最终答案|Final Answer|Answer)\\s*[:：]?\\s*",
+                ),
+                "",
+            )
             .trim()
     }
 

@@ -107,30 +107,102 @@ class GeminiService @Inject constructor(
             throw Exception("OpenAI API Key is missing. Please configure it in Settings.")
         }
 
-        val requestJson =
+        val normalizedBaseUrl = baseUrl.trim().trimEnd('/')
+        val input = "$prompt\n\n$content"
+
+        val responsesJson =
             gson.toJson(
                 mapOf(
                     "model" to modelName,
-                    "input" to "$prompt\n\n$content",
+                    "input" to input,
                     "store" to false,
                 )
             )
-        val request =
-            Request.Builder()
-                .url("${baseUrl.trimEnd('/')}/responses")
-                .addHeader("Authorization", "Bearer $apiKey")
-                .addHeader("Content-Type", "application/json")
-                .post(requestJson.toRequestBody(jsonMediaType))
-                .build()
+        val responsesRequest =
+            buildOpenAiRequest(
+                url = "$normalizedBaseUrl/responses",
+                apiKey = apiKey,
+                requestJson = responsesJson,
+            )
 
-        okHttpClient.newCall(request).execute().use { response ->
+        okHttpClient.newCall(responsesRequest).execute().use { response ->
             val body = response.body.string()
-            if (!response.isSuccessful) {
-                throw Exception(parseOpenAiError(body) ?: "OpenAI request failed: HTTP ${response.code}")
+
+            if (response.isSuccessful) {
+                return parseOpenAiText(body) ?: fallback
             }
-            return parseOpenAiText(body) ?: fallback
+
+            if (response.code != 404 && response.code != 405) {
+                throw Exception(
+                    parseOpenAiError(body)
+                        ?: "OpenAI request failed: HTTP ${response.code}"
+                )
+            }
+        }
+
+        val chatJson =
+            gson.toJson(
+                mapOf(
+                    "model" to modelName,
+                    "messages" to
+                        listOf(
+                            mapOf(
+                                "role" to "user",
+                                "content" to input,
+                            )
+                        ),
+                    "stream" to false,
+                )
+            )
+        val chatRequest =
+            buildOpenAiRequest(
+                url = "$normalizedBaseUrl/chat/completions",
+                apiKey = apiKey,
+                requestJson = chatJson,
+            )
+
+        okHttpClient.newCall(chatRequest).execute().use { response ->
+            val body = response.body.string()
+
+            if (!response.isSuccessful) {
+                throw Exception(
+                    parseOpenAiError(body)
+                        ?: "OpenAI-compatible request failed: HTTP ${response.code}"
+                )
+            }
+
+            return parseChatCompletionText(body) ?: fallback
         }
     }
+
+    private fun buildOpenAiRequest(
+        url: String,
+        apiKey: String,
+        requestJson: String,
+    ): Request =
+        Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer ${apiKey.trim()}")
+            .addHeader("Content-Type", "application/json")
+            .post(requestJson.toRequestBody(jsonMediaType))
+            .build()
+
+    private fun parseChatCompletionText(body: String): String? =
+        runCatching {
+            val root = JsonParser.parseString(body).asJsonObject
+            val choices = root.getAsJsonArray("choices")
+
+            if (choices == null || choices.size() == 0) {
+                return@runCatching null
+            }
+
+            choices[0]
+                .asJsonObject
+                .getAsJsonObject("message")
+                ?.get("content")
+                ?.asString
+                ?.takeIf { it.isNotBlank() }
+        }.getOrNull()
 
     private fun parseOpenAiError(body: String): String? =
         runCatching {

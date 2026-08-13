@@ -1,6 +1,7 @@
 package me.ash.reader.ui.page.home.knowledge
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,10 +49,19 @@ import org.commonmark.node.StrongEmphasis
 import org.commonmark.node.Text as MarkdownText
 import org.commonmark.node.ThematicBreak
 import org.commonmark.parser.Parser
+import org.commonmark.ext.gfm.tables.TableBlock
+import org.commonmark.ext.gfm.tables.TableCell
+import org.commonmark.ext.gfm.tables.TableRow
+import org.commonmark.ext.gfm.tables.TablesExtension
 
 @Composable
 fun MarkdownAnswer(markdown: String, modifier: Modifier = Modifier) {
-    val document = remember(markdown) { Parser.builder().build().parse(markdown) as Document }
+    val document = remember(markdown) {
+        Parser.builder()
+            .extensions(listOf(TablesExtension.create()))
+            .build()
+            .parse(markdown) as Document
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         var node = document.firstChild
         while (node != null) {
@@ -93,8 +103,64 @@ private fun MarkdownBlock(node: Node, listIndex: Int? = null) {
         is BulletList -> RenderList(node, ordered = false)
         is OrderedList -> RenderList(node, ordered = true, start = node.startNumber)
         is ThematicBreak -> HorizontalDivider()
+        is TableBlock -> MarkdownTable(node)
         else -> RenderChildren(node)
     }
+}
+
+@Composable
+private fun MarkdownTable(table: TableBlock) {
+    val rows = buildList<TableRow> {
+        var section = table.firstChild
+        while (section != null) {
+            var row = section.firstChild
+            while (row != null) {
+                if (row is TableRow) add(row)
+                row = row.next
+            }
+            section = section.next
+        }
+    }
+    if (rows.isEmpty()) return
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+    ) {
+        rows.forEachIndexed { rowIndex, row ->
+            Row(Modifier.width((rows.maxOf { countCells(it) } * 150).dp)) {
+                var cell = row.firstChild
+                while (cell != null) {
+                    if (cell is TableCell) {
+                        Surface(
+                            color = if (rowIndex == 0) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                        ) {
+                            MarkdownInline(
+                                cell,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (rowIndex == 0) FontWeight.SemiBold else null,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+                            )
+                        }
+                    }
+                    cell = cell.next
+                }
+            }
+        }
+    }
+}
+
+private fun countCells(row: TableRow): Int {
+    var count = 0
+    var cell = row.firstChild
+    while (cell != null) {
+        if (cell is TableCell) count++
+        cell = cell.next
+    }
+    return count
 }
 
 @Composable
@@ -131,6 +197,7 @@ private fun MarkdownInline(
     prefix: String? = null,
     style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyLarge,
     fontWeight: FontWeight? = null,
+    modifier: Modifier = Modifier,
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val codeBackground = MaterialTheme.colorScheme.surfaceVariant
@@ -142,6 +209,7 @@ private fun MarkdownInline(
     }
     val uriHandler = LocalUriHandler.current
     ClickableText(
+        modifier = modifier,
         text = annotated,
         style = style.copy(
             color = MaterialTheme.colorScheme.onSurface,
