@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.service.RagflowBackfillWorker
+import me.ash.reader.domain.service.RagflowCatalog
 import me.ash.reader.domain.service.RagflowRepository
 import me.ash.reader.infrastructure.preference.AiProviderPreference
 import me.ash.reader.infrastructure.preference.CodexApiKeyPreference
@@ -76,6 +77,10 @@ class AiSettingsViewModel @Inject constructor(
     val status = _status.asStateFlow()
     private val _testing = MutableStateFlow(false)
     val testing = _testing.asStateFlow()
+    private val _catalog = MutableStateFlow<RagflowCatalog?>(null)
+    val catalog = _catalog.asStateFlow()
+    private val _discovering = MutableStateFlow(false)
+    val discovering = _discovering.asStateFlow()
 
     fun markSaved() {
         _status.value = "配置已保存"
@@ -89,6 +94,34 @@ class AiSettingsViewModel @Inject constructor(
             _status.value = ragflow.test().fold({ "连接成功" }, { it.message ?: "连接失败" })
             _testing.value = false
         }
+    }
+
+    fun discover(baseUrl: String, apiKey: String) {
+        if (_discovering.value) return
+        viewModelScope.launch {
+            _discovering.value = true
+            _status.value = "正在获取数据集与助手…"
+            ragflow.discover(baseUrl, apiKey).fold(
+                onSuccess = {
+                    _catalog.value = it
+                    _status.value = when {
+                        it.datasets.isEmpty() && it.chats.isEmpty() -> "连接成功，但没有找到数据集或对话助手"
+                        it.datasets.isEmpty() -> "没有找到数据集，请先在 RAGFlow 中创建"
+                        it.chats.isEmpty() -> "没有找到对话助手，请先在 RAGFlow 中创建"
+                        else -> "已获取 ${it.datasets.size} 个数据集和 ${it.chats.size} 个对话助手"
+                    }
+                },
+                onFailure = {
+                    _catalog.value = null
+                    _status.value = it.message ?: "获取失败"
+                },
+            )
+            _discovering.value = false
+        }
+    }
+
+    fun clearCatalog() {
+        _catalog.value = null
     }
 
     fun sync() {
@@ -108,6 +141,8 @@ fun GeminiSettingsPage(
     val settings = LocalSettings.current
     val status by viewModel.status.collectAsState()
     val testing by viewModel.testing.collectAsState()
+    val catalog by viewModel.catalog.collectAsState()
+    val discovering by viewModel.discovering.collectAsState()
     val pageBackground = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
         Color.Black
     } else {
@@ -127,15 +162,19 @@ fun GeminiSettingsPage(
     var ragflowApiKey by remember { mutableStateOf(settings.ragflowApiKey) }
     var ragflowDatasetId by remember { mutableStateOf(settings.ragflowDatasetId) }
     var ragflowChatId by remember { mutableStateOf(settings.ragflowChatId) }
+    var datasetExpanded by remember { mutableStateOf(false) }
+    var chatExpanded by remember { mutableStateOf(false) }
     var dirty by remember { mutableStateOf(false) }
     var showErrors by remember { mutableStateOf(false) }
 
-    val ragStarted = listOf(ragflowBaseUrl, ragflowApiKey, ragflowDatasetId, ragflowChatId)
-        .any { it.isNotBlank() }
+    val ragStarted = listOf(ragflowBaseUrl, ragflowApiKey, ragflowDatasetId, ragflowChatId).any { it.isNotBlank() }
     val ragUrlValid = ragflowBaseUrl.startsWith("https://") || ragflowBaseUrl.startsWith("http://")
+    val credentialsComplete = ragUrlValid && ragflowApiKey.isNotBlank()
+    val selectionStarted = ragflowDatasetId.isNotBlank() || ragflowChatId.isNotBlank()
+    val selectionComplete = ragflowDatasetId.isNotBlank() && ragflowChatId.isNotBlank()
     val ragComplete = ragUrlValid && ragflowApiKey.isNotBlank() &&
         ragflowDatasetId.isNotBlank() && ragflowChatId.isNotBlank()
-    val configurationValid = !ragStarted || ragComplete
+    val configurationValid = !ragStarted || (credentialsComplete && (!selectionStarted || selectionComplete))
     val onEdited: (String) -> Unit = { dirty = true }
 
     fun save() {
@@ -226,16 +265,79 @@ fun GeminiSettingsPage(
             item {
                 ConfigField(
                     ragflowBaseUrl,
-                    { ragflowBaseUrl = it; onEdited(it) },
+                    {
+                        ragflowBaseUrl = it
+                        ragflowDatasetId = ""
+                        ragflowChatId = ""
+                        viewModel.clearCatalog()
+                        onEdited(it)
+                    },
                     "RAGFlow 地址",
                     placeholder = "https://rag.example.com",
                     isError = showErrors && ragStarted && !ragUrlValid,
                     supporting = if (showErrors && ragStarted && !ragUrlValid) "请输入以 http:// 或 https:// 开头的地址" else null,
                 )
             }
-            item { ConfigField(ragflowApiKey, { ragflowApiKey = it; onEdited(it) }, "API 密钥", secret = true, isError = showErrors && ragStarted && ragflowApiKey.isBlank()) }
-            item { ConfigField(ragflowDatasetId, { ragflowDatasetId = it; onEdited(it) }, "数据集 ID", isError = showErrors && ragStarted && ragflowDatasetId.isBlank()) }
-            item { ConfigField(ragflowChatId, { ragflowChatId = it; onEdited(it) }, "对话助手 ID", isError = showErrors && ragStarted && ragflowChatId.isBlank()) }
+            item {
+                ConfigField(
+                    ragflowApiKey,
+                    {
+                        ragflowApiKey = it
+                        ragflowDatasetId = ""
+                        ragflowChatId = ""
+                        viewModel.clearCatalog()
+                        onEdited(it)
+                    },
+                    "API 密钥",
+                    secret = true,
+                    isError = showErrors && ragStarted && ragflowApiKey.isBlank(),
+                )
+            }
+            item {
+                OutlinedButton(
+                    onClick = { viewModel.discover(ragflowBaseUrl, ragflowApiKey) },
+                    enabled = credentialsComplete && !discovering,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (discovering) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(if (discovering) "正在获取" else if (catalog == null) "获取数据集与助手" else "刷新数据集与助手")
+                }
+            }
+            catalog?.let { values ->
+                item {
+                    RagflowOptionField(
+                        label = "数据集",
+                        selectedId = ragflowDatasetId,
+                        options = values.datasets.map { it.id to it.name },
+                        expanded = datasetExpanded,
+                        onExpandedChange = { datasetExpanded = it },
+                        onSelected = {
+                            ragflowDatasetId = it
+                            dirty = true
+                        },
+                        emptyText = "没有可用的数据集",
+                        isError = showErrors && selectionStarted && ragflowDatasetId.isBlank(),
+                    )
+                }
+                item {
+                    RagflowOptionField(
+                        label = "对话助手",
+                        selectedId = ragflowChatId,
+                        options = values.chats.map { it.id to it.name },
+                        expanded = chatExpanded,
+                        onExpandedChange = { chatExpanded = it },
+                        onSelected = {
+                            ragflowChatId = it
+                            dirty = true
+                        },
+                        emptyText = "没有可用的对话助手",
+                        isError = showErrors && selectionStarted && ragflowChatId.isBlank(),
+                    )
+                }
+            }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(onClick = ::save, enabled = dirty || status == null, modifier = Modifier.fillMaxWidth()) {
@@ -269,6 +371,60 @@ fun GeminiSettingsPage(
                         Text("有未保存的修改", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RagflowOptionField(
+    label: String,
+    selectedId: String,
+    options: List<Pair<String, String>>,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onSelected: (String) -> Unit,
+    emptyText: String,
+    isError: Boolean,
+) {
+    val selectedName = options.firstOrNull { it.first == selectedId }?.second
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (options.isNotEmpty()) onExpandedChange(it) },
+    ) {
+        OutlinedTextField(
+            value = selectedName ?: if (selectedId.isBlank()) "" else "已保存的选择",
+            onValueChange = {},
+            readOnly = true,
+            enabled = options.isNotEmpty(),
+            label = { Text(label) },
+            placeholder = { Text(if (options.isEmpty()) emptyText else "请选择$label") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            supportingText = if (selectedId.isNotBlank() && selectedName == null) {
+                { Text("当前 ID：${selectedId.take(8)}…，可重新选择") }
+            } else null,
+            isError = isError,
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded, { onExpandedChange(false) }) {
+            options.forEach { (id, name) ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(name)
+                            Text(
+                                id,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                    onClick = {
+                        onSelected(id)
+                        onExpandedChange(false)
+                    },
+                )
             }
         }
     }

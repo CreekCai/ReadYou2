@@ -22,6 +22,11 @@ import org.jsoup.Jsoup
 
 data class RagAnswer(val answer: String, val sessionId: String?, val sources: List<RagSource>)
 data class RagSource(val title: String, val url: String?, val content: String?)
+data class RagflowOption(val id: String, val name: String)
+data class RagflowCatalog(
+    val datasets: List<RagflowOption>,
+    val chats: List<RagflowOption>,
+)
 
 class RagflowRepository @Inject constructor(
     private val client: OkHttpClient,
@@ -33,6 +38,39 @@ class RagflowRepository @Inject constructor(
     private val json = "application/json; charset=utf-8".toMediaType()
 
     fun isConfigured() = settingsProvider.settings.run { ragflowBaseUrl.isNotBlank() && ragflowApiKey.isNotBlank() && ragflowDatasetId.isNotBlank() && ragflowChatId.isNotBlank() }
+
+    suspend fun discover(baseUrl: String, apiKey: String): Result<RagflowCatalog> =
+        withContext(ioDispatcher) {
+            runCatching {
+                require(baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+                    "请输入有效的 RAGFlow 地址"
+                }
+                require(apiKey.isNotBlank()) { "请输入 API 密钥" }
+                val headers = auth(apiKey)
+                val datasetsRoot = JSONObject(
+                    execute(
+                        Request.Builder()
+                            .url(url(baseUrl, "/api/v1/datasets?page=1&page_size=100"))
+                            .headers(headers)
+                            .get()
+                            .build()
+                    )
+                )
+                val chatsRoot = JSONObject(
+                    execute(
+                        Request.Builder()
+                            .url(url(baseUrl, "/api/v1/chats?page=1&page_size=100"))
+                            .headers(headers)
+                            .get()
+                            .build()
+                    )
+                )
+                RagflowCatalog(
+                    datasets = optionsFrom(datasetsRoot, "kbs"),
+                    chats = optionsFrom(chatsRoot, "chats"),
+                )
+            }
+        }
 
     suspend fun sync(article: ArticleWithFeed) = withContext(ioDispatcher) {
         if (!isConfigured()) return@withContext
@@ -91,8 +129,29 @@ class RagflowRepository @Inject constructor(
         val body = JSONObject().put("ids", JSONArray().put(id)).toString().toRequestBody(json)
         execute(Request.Builder().url(url("/api/v1/datasets/${settingsProvider.settings.ragflowDatasetId}/documents")).headers(auth()).delete(body).build())
     }
-    private fun url(path: String) = settingsProvider.settings.ragflowBaseUrl.trimEnd('/') + path
-    private fun auth() = okhttp3.Headers.Builder().add("Authorization", "Bearer ${settingsProvider.settings.ragflowApiKey}").build()
+    private fun optionsFrom(root: JSONObject, nestedKey: String): List<RagflowOption> {
+        val data = root.opt("data")
+        val values = when (data) {
+            is JSONArray -> data
+            is JSONObject -> data.optJSONArray(nestedKey) ?: JSONArray()
+            else -> JSONArray()
+        }
+        return buildList {
+            for (index in 0 until values.length()) {
+                val item = values.optJSONObject(index) ?: continue
+                val id = item.optString("id")
+                if (id.isNotBlank()) add(RagflowOption(id, item.optString("name").ifBlank { id }))
+            }
+        }.distinctBy { it.id }.sortedBy { it.name.lowercase() }
+    }
+
+    private fun url(path: String) = url(settingsProvider.settings.ragflowBaseUrl, path)
+    private fun url(baseUrl: String, path: String): String {
+        val base = baseUrl.trim().trimEnd('/').removeSuffix("/api/v1")
+        return base + path
+    }
+    private fun auth() = auth(settingsProvider.settings.ragflowApiKey)
+    private fun auth(apiKey: String) = okhttp3.Headers.Builder().add("Authorization", "Bearer ${apiKey.trim()}").build()
     private fun execute(request: Request): String = client.newCall(request).execute().use { response ->
         val value = response.body.string()
         check(response.isSuccessful) { "RAGFlow HTTP ${response.code}: ${value.take(300)}" }
