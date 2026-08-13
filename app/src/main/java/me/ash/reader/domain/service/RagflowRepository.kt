@@ -107,15 +107,65 @@ class RagflowRepository @Inject constructor(
         mappingDao.delete(articleId)
     }
 
-    suspend fun ask(question: String, sessionId: String?): RagAnswer = withContext(ioDispatcher) {
+    suspend fun ask(
+        question: String,
+        sessionId: String?,
+        onUpdate: (RagAnswer) -> Unit = {},
+    ): RagAnswer = withContext(ioDispatcher) {
         check(isConfigured()) { "请先在设置中完成 RAGFlow 配置" }
-        val payload = JSONObject().put("question", question).put("stream", false).apply { if (!sessionId.isNullOrBlank()) put("session_id", sessionId) }
-        val root = JSONObject(execute(Request.Builder().url(url("/api/v1/chats/${settingsProvider.settings.ragflowChatId}/completions")).headers(auth()).post(payload.toString().toRequestBody(json)).build()))
-        val data = root.optJSONObject("data") ?: root
+        val payload = JSONObject().put("question", question).put("stream", true).apply {
+            if (!sessionId.isNullOrBlank()) put("session_id", sessionId)
+        }
+        val request = Request.Builder()
+            .url(url("/api/v1/chats/${settingsProvider.settings.ragflowChatId}/completions"))
+            .headers(auth())
+            .post(payload.toString().toRequestBody(json))
+            .build()
+        client.newCall(request).execute().use { response ->
+            check(response.isSuccessful) { "RAGFlow HTTP ${response.code}" }
+            val body = response.body
+            var latest = RagAnswer("", sessionId, emptyList())
+            while (!body.source().exhausted()) {
+                val line = body.source().readUtf8Line()?.trim().orEmpty()
+                if (!line.startsWith("data:")) continue
+                val event = line.removePrefix("data:").trim()
+                if (event.isBlank() || event == "true" || event == "[DONE]") continue
+                val root = runCatching { JSONObject(event) }.getOrNull() ?: continue
+                val code = root.optInt("code")
+                check(code == 0) { root.optString("message", "RAGFlow 请求失败") }
+                val data = root.optJSONObject("data") ?: continue
+                val answer = data.optString("answer")
+                val sources = sourcesFrom(data)
+                latest = RagAnswer(
+                    answer = when {
+                        answer.isBlank() -> latest.answer
+                        answer.startsWith(latest.answer) -> answer
+                        else -> latest.answer + answer
+                    },
+                    sessionId = data.optString("session_id").takeIf(String::isNotBlank)
+                        ?: latest.sessionId,
+                    sources = if (sources.isNotEmpty()) sources else latest.sources,
+                )
+                if (latest.answer.isNotBlank()) onUpdate(latest)
+            }
+            check(latest.answer.isNotBlank()) { "RAGFlow 未返回答案" }
+            latest
+        }
+    }
+
+    private fun sourcesFrom(data: JSONObject): List<RagSource> {
         val sources = mutableListOf<RagSource>()
         val chunks = data.optJSONObject("reference")?.optJSONArray("chunks") ?: JSONArray()
-        for (i in 0 until chunks.length()) chunks.optJSONObject(i)?.let { sources += RagSource(it.optString("document_name", "参考文章"), it.optString("url").takeIf(String::isNotBlank), it.optString("content").takeIf(String::isNotBlank)) }
-        RagAnswer(data.optString("answer").ifBlank { error("RAGFlow 未返回答案") }, data.optString("session_id").takeIf(String::isNotBlank), sources.distinctBy { it.title })
+        for (index in 0 until chunks.length()) {
+            chunks.optJSONObject(index)?.let {
+                sources += RagSource(
+                    it.optString("document_name", "参考文章"),
+                    it.optString("url").takeIf(String::isNotBlank),
+                    it.optString("content").takeIf(String::isNotBlank),
+                )
+            }
+        }
+        return sources.distinctBy { it.title }
     }
 
     suspend fun test(): Result<Unit> = withContext(ioDispatcher) { runCatching {

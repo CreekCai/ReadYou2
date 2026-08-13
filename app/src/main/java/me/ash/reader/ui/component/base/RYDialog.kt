@@ -1,5 +1,6 @@
 package me.ash.reader.ui.component.base
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -20,7 +21,7 @@ fun RYDialog(
     if (visible) {
         AlertDialog(
             properties = properties,
-            modifier = modifier,
+            modifier = modifier.imePadding(),
             onDismissRequest = onDismissRequest,
             icon = icon,
             title = title,

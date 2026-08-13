@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -24,10 +25,10 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.StopCircle
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -70,6 +71,7 @@ fun KnowledgeQaPage(
 ) {
     val messages = viewModel.messages.collectAsStateValue()
     val loading = viewModel.loading.collectAsStateValue()
+    val suggestions = viewModel.suggestions.collectAsStateValue()
     val count = viewModel.starredCount.collectAsStateValue()
     val pageBackground = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
         Color.Black
@@ -78,9 +80,6 @@ fun KnowledgeQaPage(
     }
     val listState = rememberLazyListState()
     var input by remember { mutableStateOf("") }
-    val suggestions = remember {
-        listOf("总结我最近关注的主题", "这些文章有哪些共同观点？", "帮我梳理关键结论")
-    }
     val submit = {
         input.trim().takeIf(String::isNotEmpty)?.let {
             input = ""
@@ -91,7 +90,7 @@ fun KnowledgeQaPage(
 
     LaunchedEffect(messages, loading) {
         if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
+            listState.scrollToItem(messages.size)
         }
     }
 
@@ -173,6 +172,7 @@ fun KnowledgeQaPage(
                         onRetry = { viewModel.retry(index) },
                     )
                 }
+                item(key = "answer-end") { Spacer(Modifier.height(1.dp)) }
             }
         }
     }
@@ -217,14 +217,63 @@ private fun KnowledgeEmptyState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(28.dp))
-        suggestions.forEach { suggestion ->
-            AssistChip(
-                onClick = { onAsk(suggestion) },
-                label = { Text(suggestion) },
-                enabled = count > 0,
+        if (suggestions.isNotEmpty()) {
+            Text(
+                "从最近上传的文章开始",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            )
+            suggestions.forEachIndexed { index, suggestion ->
+                SuggestionRow(
+                    number = index + 1,
+                    text = suggestion,
+                    onClick = { onAsk(suggestion) },
+                )
+                if (index != suggestions.lastIndex) HorizontalDivider()
+            }
+        } else if (count > 0) {
+            Text(
+                "最近的星标文章同步完成后，这里会出现相关问题。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+}
+
+@Composable
+private fun SuggestionRow(
+    number: Int,
+    text: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            number.toString().padStart(2, '0'),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.width(30.dp),
+        )
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(12.dp))
+        Icon(
+            Icons.Rounded.ArrowForward,
+            contentDescription = "使用这个问题",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
@@ -291,11 +340,7 @@ private fun KnowledgeExchange(
                 }
             }
             item.answer != null -> {
-                Text(
-                    item.answer,
-                    style = MaterialTheme.typography.bodyLarge,
-                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.25f,
-                )
+                MarkdownAnswer(item.answer, Modifier.fillMaxWidth())
                 if (item.sources.isNotEmpty()) {
                     Spacer(Modifier.height(22.dp))
                     KnowledgeSources(item.sources)

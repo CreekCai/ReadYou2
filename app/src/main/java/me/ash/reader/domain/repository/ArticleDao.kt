@@ -693,6 +693,23 @@ interface ArticleDao {
     @Query("SELECT * FROM article WHERE isStarred = 1 ORDER BY date DESC")
     suspend fun queryAllStarred(): List<ArticleWithFeed>
 
+    @Transaction
+    @Query(
+        """
+        SELECT a.* FROM article AS a
+        INNER JOIN ragflow_document AS r ON r.articleId = a.id
+        WHERE a.accountId = :accountId
+        AND a.isStarred = 1
+        AND r.status = 1
+        ORDER BY r.syncedAt DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun queryLatestRagflowStarred(
+        accountId: Int,
+        limit: Int = 10,
+    ): List<ArticleWithFeed>
+
     @Query("SELECT COUNT(*) FROM article WHERE accountId = :accountId AND isStarred = 1")
     fun observeStarredCount(accountId: Int): Flow<Int>
 

@@ -1,6 +1,7 @@
 package me.ash.reader.ui.component.base
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
@@ -177,7 +178,7 @@ fun TextFieldDialog(
     val focusManager = LocalFocusManager.current
 
     AlertDialog(
-        modifier = modifier,
+        modifier = modifier.imePadding(),
         properties = properties,
         onDismissRequest = onDismissRequest,
         icon = { icon?.let { Icon(imageVector = icon, contentDescription = title) } },
