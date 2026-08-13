@@ -1,5 +1,8 @@
 package me.ash.reader.ui.page.adaptive
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import androidx.compose.ui.util.fastFirstOrNull
 import androidx.lifecycle.ViewModel
@@ -7,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Date
 import javax.inject.Inject
 import kotlin.collections.any
@@ -44,6 +48,7 @@ import me.ash.reader.domain.service.OfflineArticleWorker
 import me.ash.reader.domain.service.RagflowSyncWorker
 import me.ash.reader.domain.repository.OfflineArticleDao
 import me.ash.reader.domain.service.GeminiService
+import me.ash.reader.domain.service.AiRequestException
 import me.ash.reader.domain.service.GoogleReaderRssService
 import me.ash.reader.domain.service.LocalRssService
 import me.ash.reader.domain.service.RssService
@@ -66,6 +71,7 @@ private const val TAG = "FlowViewModel"
 class ArticleListReaderViewModel
 @Inject
 constructor(
+    @ApplicationContext private val context: Context,
     private val rssService: RssService,
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
     @ApplicationScope private val applicationScope: CoroutineScope,
@@ -145,7 +151,12 @@ constructor(
                 _summarizationState.value = SummarizationState.Success(summary)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                val message = e.message ?: "Unknown error"
+                val message = if (e is AiRequestException) {
+                    copyAiDiagnostic(e.diagnosticLog)
+                    e.userMessage
+                } else {
+                    e.message ?: "Unknown error"
+                }
                 articleAiContentDao.upsert(
                     ArticleAiContent(
                         articleId = articleId,
@@ -162,6 +173,16 @@ constructor(
         }
     }
 
+    private fun copyAiDiagnostic(log: String) {
+        val secrets = listOf(
+            settingsProvider.settings.codexApiKey,
+            settingsProvider.settings.geminiApiKey,
+        ).filter(String::isNotBlank)
+        val redacted = secrets.fold(log) { value, secret -> value.replace(secret, "<REDACTED>") }
+        context.getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newPlainText("ReadYou AI diagnostics", redacted))
+    }
+
     fun translateArticle() {
         val currentText = readerStateStateFlow.value.content.text
         if (currentText.isNullOrBlank()) {
@@ -175,7 +196,13 @@ constructor(
                 val translation = geminiService.translate(currentText)
                 _readerState.update { it.copy(content = ReaderState.FullContent(translation)) }
             } catch (e: Exception) {
-                _readerState.update { it.copy(content = ReaderState.Error(e.message ?: "Unknown error")) }
+                val message = if (e is AiRequestException) {
+                    copyAiDiagnostic(e.diagnosticLog)
+                    e.userMessage
+                } else {
+                    e.message ?: "Unknown error"
+                }
+                _readerState.update { it.copy(content = ReaderState.Error(message)) }
             }
         }
     }

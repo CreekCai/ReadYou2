@@ -187,7 +187,7 @@ class RagflowRepository @Inject constructor(
             请先检索并综合理解当前知识库中的全部星标文章。基于实际检索到的内容，洞察用户长期的
             关注点、实际需求、知识缺口、潜在决策，以及用户接下来最可能想探索的问题。
 
-            生成 12 个互不重复、能够跨多篇文章检索回答的问题。问题应覆盖主题脉络、观点冲突、
+            生成 12 个互不重复、能够跨多篇文章检索回答的问题，每个问题尽量控制在 36 个汉字以内。问题应覆盖主题脉络、观点冲突、
             趋势变化、证据可靠性、知识缺口和可执行建议，避免只询问某一篇文章的摘要。
             每个问题必须包含知识库中实际出现的具体主题、概念、人物、项目或观点；禁止生成脱离
             知识库内容的通用问题。如果检索证据不足，就少生成，不要用泛化问题补足数量。
@@ -206,7 +206,7 @@ class RagflowRepository @Inject constructor(
                     .replace(Regex("^\\d+[.、)]\\s*"), "")
                     .trim()
             }
-            .filter { it.length in 12..100 && (it.endsWith("？") || it.endsWith("?")) }
+            .filter { it.length in 12..64 && (it.endsWith("？") || it.endsWith("?")) }
             .distinctBy { it.lowercase().filterNot(Char::isWhitespace) }
             .take(12)
             .toList()

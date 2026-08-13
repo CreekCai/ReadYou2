@@ -239,19 +239,13 @@ private fun KnowledgeEmptyState(
         )
         Spacer(Modifier.height(28.dp))
         if (suggestions.isNotEmpty()) {
-            Text(
-                "为你发现",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-            )
             val textMeasurer = rememberTextMeasurer()
             val density = LocalDensity.current
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val textStyle = MaterialTheme.typography.bodyMedium
                 val availableTextWidth = (maxWidth - 60.dp).coerceAtLeast(0.dp)
                 val visibleSuggestions = remember(suggestions, availableTextWidth, textStyle) {
-                    suggestions.filter { question ->
+                    selectVisibleSuggestions(suggestions) { question ->
                         !textMeasurer.measure(
                             text = question,
                             style = textStyle,
@@ -262,15 +256,25 @@ private fun KnowledgeEmptyState(
                         ).hasVisualOverflow
                     }
                 }
-                Column {
-                    visibleSuggestions.forEachIndexed { index, suggestion ->
-                        SuggestionRow(
-                            number = index + 1,
-                            text = suggestion,
-                            onClick = { onAsk(suggestion) },
+                if (visibleSuggestions.isNotEmpty()) {
+                    Column {
+                        Text(
+                            "为你发现",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                         )
-                        if (index != visibleSuggestions.lastIndex) HorizontalDivider()
+                        visibleSuggestions.forEachIndexed { index, suggestion ->
+                            SuggestionRow(
+                                number = index + 1,
+                                text = suggestion,
+                                onClick = { onAsk(suggestion) },
+                            )
+                            if (index != visibleSuggestions.lastIndex) HorizontalDivider()
+                        }
                     }
+                } else {
+                    SuggestionStatusText("探索问题正在后台优化，你仍然可以直接向知识库提问。")
                 }
             }
         } else if (count > 0) {
@@ -298,6 +302,11 @@ private fun KnowledgeEmptyState(
         }
     }
 }
+
+internal fun selectVisibleSuggestions(
+    suggestions: List<String>,
+    fits: (String) -> Boolean,
+): List<String> = suggestions.filter(fits).take(3)
 
 @Composable
 private fun SuggestionStatusText(text: String, isError: Boolean = false) {

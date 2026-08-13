@@ -153,7 +153,7 @@ internal fun shouldRefreshKnowledgeSuggestions(
     nowMillis: Long,
 ): Boolean {
     if (snapshot.isEmpty()) return false
-    if (cache == null || decodeQuestions(cache.questionsJson).isEmpty()) return true
+    if (cache == null || !hasPresentableKnowledgeSuggestions(cache.questionsJson)) return true
     val age = (nowMillis - cache.generatedAt.time).coerceAtLeast(0L)
     if (age >= KNOWLEDGE_SUGGESTION_MAX_AGE_MILLIS) return true
     if (age < KNOWLEDGE_SUGGESTION_MIN_REFRESH_MILLIS) return false
@@ -164,6 +164,9 @@ internal fun shouldRefreshKnowledgeSuggestions(
     val total = maxOf(previous.size, current.size, 1)
     return changed >= 10 || changed.toDouble() / total >= 0.10
 }
+
+internal fun hasPresentableKnowledgeSuggestions(value: String?): Boolean =
+    decodeQuestions(value).any { it.length <= 64 }
 
 internal fun encodeQuestions(questions: List<String>): String =
     knowledgeSuggestionGson.toJson(questions.distinct())

@@ -54,7 +54,7 @@ class KnowledgeQaViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             suggestionService.observeCachedQuestions(accountId).collect { cached ->
-                _suggestions.value = cached.shuffled().take(3)
+                _suggestions.value = cached.shuffled()
             }
         }
         viewModelScope.launch {

@@ -4,6 +4,8 @@ import com.google.ai.client.generativeai.GenerativeModel
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import java.io.InterruptedIOException
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -28,6 +30,10 @@ class GeminiService @Inject constructor(
     private val renderer: HtmlRenderer = HtmlRenderer.builder().build()
     private val gson = Gson()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+    private val aiHttpClient = okHttpClient.newBuilder()
+        .readTimeout(AI_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .callTimeout(AI_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
 
     suspend fun testModel(
         provider: AiProviderPreference,
@@ -42,14 +48,14 @@ class GeminiService @Inject constructor(
                 apiKey = apiKey,
                 baseUrl = baseUrl,
                 prompt = "This is a connection test. Reply with OK only.",
-                content = "OK",
+                content = realisticConnectionTestContent(),
                 fallback = "No response generated.",
             )
             else -> generateGeminiContent(
                 modelName = modelName,
                 apiKey = apiKey,
                 prompt = "This is a connection test. Reply with OK only.",
-                content = "OK",
+                content = realisticConnectionTestContent(),
                 fallback = "No response generated.",
             )
         }
@@ -143,6 +149,7 @@ class GeminiService @Inject constructor(
                     "model" to modelName,
                     "input" to input,
                     "store" to false,
+                    "max_output_tokens" to AI_MAX_OUTPUT_TOKENS,
                 )
             )
         val responsesRequest =
@@ -152,32 +159,28 @@ class GeminiService @Inject constructor(
                 requestJson = responsesJson,
             )
 
-        okHttpClient.newCall(responsesRequest).execute().use { response ->
-            val body = response.body.string()
+        val startedAt = System.nanoTime()
+        try {
+            aiHttpClient.newCall(responsesRequest).execute().use { response ->
+                val body = response.body.string()
 
-            if (response.isSuccessful) {
-                return parseOpenAiText(body) ?: fallback
-            }
+                if (response.isSuccessful) {
+                    return parseOpenAiText(body) ?: fallback
+                }
 
-            if (response.code != 404 && response.code != 405) {
-                throw openAiRequestException("Responses API", responsesRequest.url.toString(), response.code, body)
+                if (response.code != 404 && response.code != 405) {
+                    throw openAiRequestException("Responses API", responsesRequest.url.toString(), response.code, body)
+                }
             }
+        } catch (error: InterruptedIOException) {
+            throw aiTimeoutException(modelName, responsesRequest.url.toString(), input.length, startedAt, error)
         }
 
-        val chatJson =
-            gson.toJson(
-                mapOf(
-                    "model" to modelName,
-                    "messages" to
-                        listOf(
-                            mapOf(
-                                "role" to "user",
-                                "content" to input,
-                            )
-                        ),
-                    "stream" to false,
-                )
-            )
+        val chatJson = buildChatCompletionJson(
+            modelName = modelName,
+            input = input,
+            siliconFlow = isSiliconFlowBaseUrl(normalizedBaseUrl),
+        )
         val chatRequest =
             buildOpenAiRequest(
                 url = "$normalizedBaseUrl/chat/completions",
@@ -185,16 +188,48 @@ class GeminiService @Inject constructor(
                 requestJson = chatJson,
             )
 
-        okHttpClient.newCall(chatRequest).execute().use { response ->
-            val body = response.body.string()
+        val chatStartedAt = System.nanoTime()
+        try {
+            aiHttpClient.newCall(chatRequest).execute().use { response ->
+                val body = response.body.string()
 
-            if (!response.isSuccessful) {
-                throw openAiRequestException("Chat Completions API", chatRequest.url.toString(), response.code, body)
+                if (!response.isSuccessful) {
+                    throw openAiRequestException("Chat Completions API", chatRequest.url.toString(), response.code, body)
+                }
+
+                return parseChatCompletionText(body) ?: fallback
             }
-
-            return parseChatCompletionText(body) ?: fallback
+        } catch (error: InterruptedIOException) {
+            throw aiTimeoutException(modelName, chatRequest.url.toString(), input.length, chatStartedAt, error)
         }
     }
+
+    private fun buildChatCompletionJson(
+        modelName: String,
+        input: String,
+        siliconFlow: Boolean,
+    ): String = gson.toJson(chatCompletionPayload(modelName, input, siliconFlow))
+
+    private fun aiTimeoutException(
+        modelName: String,
+        url: String,
+        inputLength: Int,
+        startedAt: Long,
+        cause: InterruptedIOException,
+    ) = AiRequestException(
+        userMessage = "AI 请求超时（诊断日志已复制）",
+        diagnosticLog = buildString {
+            appendLine("ReadYou AI request diagnostics")
+            appendLine("Error: TIMEOUT")
+            appendLine("Model: $modelName")
+            appendLine("URL: $url")
+            appendLine("Input characters: $inputLength")
+            appendLine("Elapsed milliseconds: ${(System.nanoTime() - startedAt) / 1_000_000}")
+            appendLine("Timeout seconds: $AI_REQUEST_TIMEOUT_SECONDS")
+            append(cause.stackTraceToString())
+        },
+        cause = cause,
+    )
 
     private fun buildOpenAiRequest(
         url: String,
@@ -242,14 +277,18 @@ class GeminiService @Inject constructor(
     ): Exception {
         val serverMessage = parseOpenAiError(body)
         val responseExcerpt = body.trim().take(1_000).ifBlank { "<empty>" }
-        return Exception(
-            buildString {
-                appendLine("$api request failed")
-                appendLine("URL: $url")
-                appendLine("HTTP: $status")
-                if (!serverMessage.isNullOrBlank()) appendLine("Message: $serverMessage")
-                append("Response: $responseExcerpt")
-            }
+        val diagnostics = buildString {
+            appendLine("ReadYou AI request diagnostics")
+            appendLine("Error: HTTP_FAILURE")
+            appendLine("API: $api")
+            appendLine("URL: $url")
+            appendLine("HTTP: $status")
+            if (!serverMessage.isNullOrBlank()) appendLine("Message: $serverMessage")
+            append("Response: $responseExcerpt")
+        }
+        return AiRequestException(
+            userMessage = serverMessage ?: "$api 请求失败：HTTP $status（诊断日志已复制）",
+            diagnosticLog = diagnostics,
         )
     }
 
@@ -276,6 +315,41 @@ class GeminiService @Inject constructor(
 
     private fun JsonObject.getAsJsonObject(name: String) =
         get(name)?.takeIf { it.isJsonObject }?.asJsonObject
+}
+
+class AiRequestException(
+    val userMessage: String,
+    val diagnosticLog: String,
+    cause: Throwable? = null,
+) : Exception(userMessage, cause)
+
+internal const val AI_REQUEST_TIMEOUT_SECONDS = 120L
+internal const val AI_MAX_OUTPUT_TOKENS = 768
+
+internal fun chatCompletionPayload(
+    modelName: String,
+    input: String,
+    siliconFlow: Boolean,
+): Map<String, Any> = mutableMapOf<String, Any>(
+    "model" to modelName,
+    "messages" to listOf(mapOf("role" to "user", "content" to input)),
+    "stream" to false,
+    "max_tokens" to AI_MAX_OUTPUT_TOKENS,
+    "temperature" to 0.3,
+).apply {
+    if (siliconFlow) put("enable_thinking", false)
+}
+
+internal fun isSiliconFlowBaseUrl(baseUrl: String): Boolean =
+    baseUrl.toHttpUrlOrNull()?.host?.let { host ->
+        host == "siliconflow.cn" || host.endsWith(".siliconflow.cn")
+    } == true
+
+internal fun realisticConnectionTestContent(): String = buildString {
+    repeat(24) { index ->
+        append("Paragraph ${index + 1}: This is representative article content used to verify sustained model response latency. ")
+        append("Identify the main idea and return a concise result without showing reasoning. ")
+    }
 }
 
 internal fun normalizeOpenAiBaseUrl(baseUrl: String): String {

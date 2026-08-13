@@ -56,6 +56,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.ash.reader.domain.service.GeminiService
+import me.ash.reader.domain.service.AiRequestException
 import me.ash.reader.domain.service.RagflowBackfillWorker
 import me.ash.reader.domain.service.RagflowCatalog
 import me.ash.reader.domain.service.RagflowRepository
@@ -243,7 +244,12 @@ private fun buildDiagnosticLog(
         results.forEach { result ->
             appendLine("[${result.name}] ${if (result.skipped) "SKIPPED" else if (result.success) "SUCCESS" else "FAILED"}")
             result.error?.let { error ->
-                appendLine(redact(error.stackTraceToString()))
+                appendLine(
+                    redact(
+                        (error as? AiRequestException)?.diagnosticLog
+                            ?: error.stackTraceToString()
+                    )
+                )
             }
         }
     }

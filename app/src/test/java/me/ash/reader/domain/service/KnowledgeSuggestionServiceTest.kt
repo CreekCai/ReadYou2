@@ -76,6 +76,20 @@ class KnowledgeSuggestionServiceTest {
         )
     }
 
+    @Test
+    fun `refreshes legacy cache when every question is too long`() {
+        val snapshot = revisions(20)
+        val longQuestions = encodeQuestions(listOf("这是一条超过新版展示长度限制并且无法在移动设备页面完整展示的探索问题".repeat(3) + "？"))
+        val cache = KnowledgeSuggestionCache(
+            accountId = 1,
+            questionsJson = longQuestions,
+            snapshotJson = snapshotJson(snapshot),
+            generatedAt = Date(now - 1_000),
+        )
+
+        assertTrue(shouldRefreshKnowledgeSuggestions(cache, snapshot, now))
+    }
+
     private fun cache(snapshot: List<RagflowKnowledgeRevision>, generatedAt: Long) =
         KnowledgeSuggestionCache(
             accountId = 1,
