@@ -21,9 +21,15 @@ class RagflowSyncWorker @AssistedInject constructor(
         val id = inputData.getString(KEY_ID) ?: return Result.failure()
         return runCatching {
             val article = articleDao.queryById(id)
-            if (article?.article?.isStarred == true) repository.sync(article) else repository.delete(id)
             article?.article?.accountId?.let {
-                runCatching { suggestionService.refreshIfNeeded(it) }
+                suggestionService.markSyncing(it)
+                try {
+                    if (article.article.isStarred) repository.sync(article) else repository.delete(id)
+                } catch (error: Throwable) {
+                    suggestionService.markSyncFailure(it, error)
+                    throw error
+                }
+                suggestionService.refreshIfNeeded(it)
             }
         }.fold({ Result.success() }, { if (runAttemptCount < 5) Result.retry() else Result.failure() })
     }
@@ -48,15 +54,26 @@ class RagflowBackfillWorker @AssistedInject constructor(
     private val suggestionService: KnowledgeSuggestionService,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result = runCatching {
-        if (repository.isConfigured()) {
-            val starred = articleDao.queryAllStarred()
-            starred.forEach { repository.sync(it) }
-            val ids = starred.mapTo(mutableSetOf()) { it.article.id }
-            mappingDao.all().filter { it.articleId !in ids }.forEach { repository.delete(it.articleId) }
-            starred.map { it.article.accountId }.distinct().forEach {
-                runCatching { suggestionService.refreshIfNeeded(it) }
-            }
+        val starred = articleDao.queryAllStarred()
+        val accountIds = starred.map { it.article.accountId }.distinct()
+        if (!repository.isConfigured()) {
+            accountIds.forEach { suggestionService.refreshIfNeeded(it) }
+            return@runCatching
         }
+        accountIds.forEach { accountId ->
+            suggestionService.markSyncing(accountId)
+            val accountArticles = starred.filter { it.article.accountId == accountId }
+            val failures = accountArticles.mapNotNull { article ->
+                runCatching { repository.sync(article) }.exceptionOrNull()
+            }
+            if (failures.isNotEmpty() && mappingDao.syncedKnowledgeSnapshot(accountId).isEmpty()) {
+                suggestionService.markSyncFailure(accountId, failures.first())
+                throw failures.first()
+            }
+            suggestionService.refreshIfNeeded(accountId)
+        }
+        val starredIds = starred.mapTo(mutableSetOf()) { it.article.id }
+        mappingDao.all().filter { it.articleId !in starredIds }.forEach { repository.delete(it.articleId) }
     }.fold({ Result.success() }, { if (runAttemptCount < 5) Result.retry() else Result.failure() })
     companion object {
         fun enqueue(manager: WorkManager) = manager.enqueueUniqueWork(

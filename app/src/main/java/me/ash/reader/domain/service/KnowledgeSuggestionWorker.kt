@@ -22,10 +22,14 @@ class KnowledgeSuggestionWorker @AssistedInject constructor(
     private val suggestionService: KnowledgeSuggestionService,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        accountDao.queryAll().mapNotNull { it.id }.forEach { accountId ->
-            runCatching { suggestionService.refreshIfNeeded(accountId) }
-        }
-        return Result.success()
+        return runCatching {
+            accountDao.queryAll().mapNotNull { it.id }.forEach { accountId ->
+                suggestionService.refreshIfNeeded(accountId)
+            }
+        }.fold(
+            { Result.success() },
+            { if (runAttemptCount < 3) Result.retry() else Result.failure() },
+        )
     }
 
     companion object {

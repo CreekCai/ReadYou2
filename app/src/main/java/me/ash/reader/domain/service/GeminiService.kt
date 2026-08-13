@@ -279,7 +279,7 @@ class GeminiService @Inject constructor(
 }
 
 internal fun normalizeOpenAiBaseUrl(baseUrl: String): String {
-    var normalized = baseUrl.trim().trimEnd('/')
+    var normalized = sanitizeOpenAiBaseUrlInput(baseUrl).trimEnd('/')
     listOf("/chat/completions", "/responses").firstOrNull {
         normalized.endsWith(it, ignoreCase = true)
     }?.let { suffix ->
@@ -295,3 +295,6 @@ internal fun normalizeOpenAiBaseUrl(baseUrl: String): String {
     }
     return apiRoot.toString().trimEnd('/')
 }
+
+internal fun sanitizeOpenAiBaseUrlInput(value: String): String =
+    value.trim().takeWhile { !it.isWhitespace() }

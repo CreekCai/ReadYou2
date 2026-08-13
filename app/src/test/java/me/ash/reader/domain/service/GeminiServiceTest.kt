@@ -44,4 +44,22 @@ class GeminiServiceTest {
             normalizeOpenAiBaseUrl("https://example.com/openai/v1"),
         )
     }
+
+    @Test
+    fun `discards text pasted after base URL on a new line`() {
+        assertEquals(
+            "https://api.siliconflow.cn/v1",
+            normalizeOpenAiBaseUrl(
+                "https://api.siliconflow.cn/v1\n\n1. 默认三个问题显示的字体太大了",
+            ),
+        )
+    }
+
+    @Test
+    fun `discards text pasted after base URL separated by spaces`() {
+        assertEquals(
+            "https://api.siliconflow.cn/v1",
+            normalizeOpenAiBaseUrl("https://api.siliconflow.cn/v1 accidental pasted text"),
+        )
+    }
 }

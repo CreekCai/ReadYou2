@@ -41,7 +41,7 @@ import java.util.*
         SavedKnowledgeAnswer::class,
         KnowledgeSuggestionCache::class,
     ],
-    version = 11,
+    version = 12,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 5, to = 7),
@@ -110,6 +110,7 @@ val allMigrations = arrayOf(
     MIGRATION_8_9,
     MIGRATION_9_10,
     MIGRATION_10_11,
+    MIGRATION_11_12,
 )
 
 @Suppress("ClassName")
@@ -284,5 +285,38 @@ object MIGRATION_10_11 : Migration(10, 11) {
             )
             """.trimIndent()
         )
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_11_12 : Migration(11, 12) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS knowledge_suggestion_cache_new (
+                accountId INTEGER NOT NULL PRIMARY KEY,
+                questionsJson TEXT NOT NULL,
+                snapshotJson TEXT NOT NULL,
+                generatedAt INTEGER NOT NULL,
+                status INTEGER NOT NULL,
+                errorMessage TEXT,
+                updatedAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            INSERT INTO knowledge_suggestion_cache_new (
+                accountId, questionsJson, snapshotJson, generatedAt,
+                status, errorMessage, updatedAt
+            )
+            SELECT accountId, questionsJson, snapshotJson, generatedAt,
+                CASE WHEN questionsJson = '[]' THEN 0 ELSE 3 END,
+                NULL, generatedAt
+            FROM knowledge_suggestion_cache
+            """.trimIndent()
+        )
+        database.execSQL("DROP TABLE knowledge_suggestion_cache")
+        database.execSQL("ALTER TABLE knowledge_suggestion_cache_new RENAME TO knowledge_suggestion_cache")
     }
 }

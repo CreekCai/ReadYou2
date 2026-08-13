@@ -35,30 +35,114 @@ class KnowledgeSuggestionService @Inject constructor(
             .map { decodeQuestions(it?.questionsJson) }
             .distinctUntilChanged()
 
+    fun observeState(accountId: Int): Flow<KnowledgeSuggestionState> =
+        cacheDao.observe(accountId)
+            .map { it.toSuggestionState() }
+            .distinctUntilChanged()
+
+    suspend fun markSyncing(accountId: Int) = updateState(
+        accountId,
+        KnowledgeSuggestionCache.STATUS_SYNCING,
+    )
+
+    suspend fun markSyncFailure(accountId: Int, error: Throwable) = updateState(
+        accountId,
+        KnowledgeSuggestionCache.STATUS_FAILED,
+        "星标文章同步失败：${error.userMessage()}",
+    )
+
     suspend fun refreshIfNeeded(accountId: Int, nowMillis: Long = System.currentTimeMillis()): Boolean =
         withContext(ioDispatcher) {
             refreshMutex.withLock {
-                if (!ragflow.isConfigured()) return@withLock false
-                val snapshot = documentDao.syncedKnowledgeSnapshot(accountId)
-                if (snapshot.isEmpty()) return@withLock false
-                val cached = cacheDao.get(accountId)
-                if (!shouldRefreshKnowledgeSuggestions(cached, snapshot, nowMillis)) {
+                if (!ragflow.isConfigured()) {
+                    updateState(
+                        accountId,
+                        KnowledgeSuggestionCache.STATUS_CONFIGURATION_REQUIRED,
+                        "请先完成 RAGFlow 数据集与对话助手配置",
+                    )
                     return@withLock false
                 }
-                val questions = ragflow.suggestQuestions().getOrThrow()
-                if (questions.isEmpty()) return@withLock false
-                cacheDao.upsert(
-                    KnowledgeSuggestionCache(
-                        accountId = accountId,
-                        questionsJson = encodeQuestions(questions),
-                        snapshotJson = encodeSnapshot(snapshot),
-                        generatedAt = Date(nowMillis),
+                val snapshot = documentDao.syncedKnowledgeSnapshot(accountId)
+                if (snapshot.isEmpty()) {
+                    updateState(
+                        accountId,
+                        KnowledgeSuggestionCache.STATUS_INSUFFICIENT_CONTENT,
+                        "尚无已完成解析的星标文章",
                     )
-                )
+                    return@withLock false
+                }
+                val cached = cacheDao.get(accountId)
+                if (!shouldRefreshKnowledgeSuggestions(cached, snapshot, nowMillis)) {
+                    updateState(accountId, KnowledgeSuggestionCache.STATUS_READY)
+                    return@withLock false
+                }
+                updateState(accountId, KnowledgeSuggestionCache.STATUS_GENERATING)
+                runCatching { ragflow.suggestQuestions().getOrThrow() }
+                    .fold(
+                        onSuccess = { questions ->
+                            if (questions.isEmpty()) {
+                                updateState(
+                                    accountId,
+                                    KnowledgeSuggestionCache.STATUS_INSUFFICIENT_CONTENT,
+                                    "RAGFlow 未返回符合要求的探索问题",
+                                )
+                                return@withLock false
+                            }
+                            cacheDao.upsert(
+                                KnowledgeSuggestionCache(
+                                    accountId = accountId,
+                                    questionsJson = encodeQuestions(questions),
+                                    snapshotJson = encodeSnapshot(snapshot),
+                                    generatedAt = Date(nowMillis),
+                                    status = KnowledgeSuggestionCache.STATUS_READY,
+                                    updatedAt = Date(nowMillis),
+                                )
+                            )
+                        },
+                        onFailure = { error ->
+                            updateState(
+                                accountId,
+                                KnowledgeSuggestionCache.STATUS_FAILED,
+                                "探索问题生成失败：${error.userMessage()}",
+                            )
+                            throw error
+                        },
+                    )
                 true
             }
         }
+
+    private suspend fun updateState(accountId: Int, status: Int, errorMessage: String? = null) {
+        val current = cacheDao.get(accountId)
+        cacheDao.upsert(
+            current?.copy(
+                status = status,
+                errorMessage = errorMessage,
+                updatedAt = Date(),
+            ) ?: KnowledgeSuggestionCache(
+                accountId = accountId,
+                questionsJson = "[]",
+                snapshotJson = "{}",
+                status = status,
+                errorMessage = errorMessage,
+            )
+        )
+    }
 }
+
+data class KnowledgeSuggestionState(
+    val status: Int = KnowledgeSuggestionCache.STATUS_PREPARING,
+    val errorMessage: String? = null,
+)
+
+private fun KnowledgeSuggestionCache?.toSuggestionState() = KnowledgeSuggestionState(
+    status = this?.status ?: KnowledgeSuggestionCache.STATUS_PREPARING,
+    errorMessage = this?.errorMessage,
+)
+
+private fun Throwable.userMessage(): String =
+    message?.lineSequence()?.firstOrNull()?.take(240)?.takeIf(String::isNotBlank)
+        ?: this::class.java.simpleName
 
 internal const val KNOWLEDGE_SUGGESTION_MIN_REFRESH_MILLIS = 24 * 60 * 60 * 1_000L
 internal const val KNOWLEDGE_SUGGESTION_MAX_AGE_MILLIS = 7 * 24 * 60 * 60 * 1_000L

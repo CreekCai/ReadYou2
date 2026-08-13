@@ -283,6 +283,31 @@ class RagflowRepository @Inject constructor(
         Unit
     } }
 
+    suspend fun testChat(
+        baseUrl: String,
+        apiKey: String,
+        chatId: String,
+    ): Result<Unit> = withContext(ioDispatcher) { runCatching {
+        require(baseUrl.isNotBlank()) { "RAGFlow 地址为空" }
+        require(apiKey.isNotBlank()) { "RAGFlow API Key 为空" }
+        require(chatId.isNotBlank()) { "RAGFlow 对话助手未选择" }
+        val payload = JSONObject()
+            .put("question", "Reply with OK only.")
+            .put("stream", false)
+            .toString()
+            .toRequestBody(json)
+        val response = execute(
+            Request.Builder()
+                .url(url(baseUrl, "/api/v1/chats/$chatId/completions"))
+                .headers(auth(apiKey))
+                .post(payload)
+                .build()
+        )
+        val data = JSONObject(response).optJSONObject("data")
+        check(!data?.optString("answer").isNullOrBlank()) { "RAGFlow 对话助手未返回回答" }
+        Unit
+    } }
+
     private fun deleteRemote(id: String) {
         if (!isConfigured()) return
         val body = JSONObject().put("ids", JSONArray().put(id)).toString().toRequestBody(json)

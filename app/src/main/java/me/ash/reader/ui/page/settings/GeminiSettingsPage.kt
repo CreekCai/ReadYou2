@@ -59,6 +59,7 @@ import me.ash.reader.domain.service.GeminiService
 import me.ash.reader.domain.service.RagflowBackfillWorker
 import me.ash.reader.domain.service.RagflowCatalog
 import me.ash.reader.domain.service.RagflowRepository
+import me.ash.reader.domain.service.sanitizeOpenAiBaseUrlInput
 import me.ash.reader.infrastructure.preference.AiProviderPreference
 import me.ash.reader.infrastructure.preference.CodexApiKeyPreference
 import me.ash.reader.infrastructure.preference.CodexModelPreference
@@ -91,7 +92,8 @@ class AiSettingsViewModel @Inject constructor(
     val discovering = _discovering.asStateFlow()
 
     fun markSaved() {
-        _status.value = "配置已保存"
+        RagflowBackfillWorker.enqueue(workManager)
+        _status.value = "配置已保存，已在后台同步星标文章并生成探索问题"
     }
 
     fun test(config: AiConnectionTestConfig) {
@@ -113,12 +115,25 @@ class AiSettingsViewModel @Inject constructor(
                                     datasetId = config.ragflowDatasetId,
                                 ).getOrThrow()
                             }.fold(
-                                { ConnectionTestResult("RAGFlow", true) },
-                                { ConnectionTestResult("RAGFlow", false, it) },
+                                { ConnectionTestResult("RAGFlow 数据集", true) },
+                                { ConnectionTestResult("RAGFlow 数据集", false, it) },
+                            )
+                        )
+                        add(
+                            runCatching {
+                                ragflow.testChat(
+                                    baseUrl = config.ragflowBaseUrl,
+                                    apiKey = config.ragflowApiKey,
+                                    chatId = config.ragflowChatId,
+                                ).getOrThrow()
+                            }.fold(
+                                { ConnectionTestResult("RAGFlow 对话助手", true) },
+                                { ConnectionTestResult("RAGFlow 对话助手", false, it) },
                             )
                         )
                     } else {
-                        add(ConnectionTestResult("RAGFlow", true, skipped = true))
+                        add(ConnectionTestResult("RAGFlow 数据集", true, skipped = true))
+                        add(ConnectionTestResult("RAGFlow 对话助手", true, skipped = true))
                     }
                 }
                 val failures = results.filter { !it.success }
@@ -197,8 +212,9 @@ data class AiConnectionTestConfig(
     val ragflowBaseUrl: String,
     val ragflowApiKey: String,
     val ragflowDatasetId: String,
+    val ragflowChatId: String,
 ) {
-    val hasAnyRagflowValue = listOf(ragflowBaseUrl, ragflowApiKey, ragflowDatasetId).any(String::isNotBlank)
+    val hasAnyRagflowValue = listOf(ragflowBaseUrl, ragflowApiKey, ragflowDatasetId, ragflowChatId).any(String::isNotBlank)
 }
 
 private data class ConnectionTestResult(
@@ -222,6 +238,7 @@ private fun buildDiagnosticLog(
         appendLine("Translation model: ${config.translationModel.ifBlank { "<not set>" }}")
         appendLine("RAGFlow Base URL: ${config.ragflowBaseUrl.ifBlank { "<not set>" }}")
         appendLine("RAGFlow dataset: ${config.ragflowDatasetId.ifBlank { "<not set>" }}")
+        appendLine("RAGFlow chat assistant: ${config.ragflowChatId.ifBlank { "<not set>" }}")
         appendLine()
         results.forEach { result ->
             appendLine("[${result.name}] ${if (result.skipped) "SKIPPED" else if (result.success) "SUCCESS" else "FAILED"}")
@@ -254,7 +271,9 @@ fun GeminiSettingsPage(
 
     var provider by remember { mutableStateOf(settings.aiProvider) }
     var providerExpanded by remember { mutableStateOf(false) }
-    var openAiBaseUrl by remember { mutableStateOf(settings.openAiBaseUrl) }
+    var openAiBaseUrl by remember {
+        mutableStateOf(sanitizeOpenAiBaseUrlInput(settings.openAiBaseUrl))
+    }
     var codexApiKey by remember { mutableStateOf(settings.codexApiKey) }
     var codexModel by remember { mutableStateOf(settings.codexModel) }
     var codexTranslationModel by remember { mutableStateOf(settings.codexTranslationModel) }
@@ -291,7 +310,9 @@ fun GeminiSettingsPage(
         showErrors = true
         if (!configurationValid) return
         provider.put(context, scope)
-        OpenAiBaseUrlPreference.put(context, scope, openAiBaseUrl.trim())
+        val sanitizedOpenAiBaseUrl = sanitizeOpenAiBaseUrlInput(openAiBaseUrl)
+        openAiBaseUrl = sanitizedOpenAiBaseUrl
+        OpenAiBaseUrlPreference.put(context, scope, sanitizedOpenAiBaseUrl)
         CodexApiKeyPreference.put(context, scope, codexApiKey.trim())
         CodexModelPreference.put(context, scope, codexModel.trim())
         CodexTranslationModelPreference.put(context, scope, codexTranslationModel.trim())
@@ -354,7 +375,16 @@ fun GeminiSettingsPage(
                 }
             }
             if (provider == AiProviderPreference.OpenAI) {
-                item { ConfigField(openAiBaseUrl, { openAiBaseUrl = it; onEdited(it) }, "OpenAI Base URL") }
+                item {
+                    ConfigField(
+                        openAiBaseUrl,
+                        {
+                            openAiBaseUrl = sanitizeOpenAiBaseUrlInput(it)
+                            onEdited(it)
+                        },
+                        "OpenAI Base URL",
+                    )
+                }
                 item { ConfigField(codexApiKey, { codexApiKey = it; onEdited(it) }, "OpenAI API Key", secret = true) }
                 item { ConfigField(codexModel, { codexModel = it; onEdited(it) }, "摘要模型") }
                 item { ConfigField(codexTranslationModel, { codexTranslationModel = it; onEdited(it) }, "翻译模型") }
@@ -459,13 +489,14 @@ fun GeminiSettingsPage(
                                 viewModel.test(
                                     AiConnectionTestConfig(
                                         provider = provider,
-                                        openAiBaseUrl = openAiBaseUrl.trim(),
+                                        openAiBaseUrl = sanitizeOpenAiBaseUrlInput(openAiBaseUrl),
                                         aiApiKey = if (provider == AiProviderPreference.OpenAI) codexApiKey.trim() else geminiApiKey.trim(),
                                         summaryModel = if (provider == AiProviderPreference.OpenAI) codexModel.trim() else geminiModel.trim(),
                                         translationModel = if (provider == AiProviderPreference.OpenAI) codexTranslationModel.trim() else geminiTranslationModel.trim(),
                                         ragflowBaseUrl = ragflowBaseUrl.trim(),
                                         ragflowApiKey = ragflowApiKey.trim(),
                                         ragflowDatasetId = ragflowDatasetId.trim(),
+                                        ragflowChatId = ragflowChatId.trim(),
                                     )
                                 )
                             },

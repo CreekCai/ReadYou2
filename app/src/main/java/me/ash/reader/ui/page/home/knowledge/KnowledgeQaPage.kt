@@ -76,6 +76,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import me.ash.reader.domain.service.RagSource
+import me.ash.reader.domain.model.article.KnowledgeSuggestionCache
+import me.ash.reader.domain.service.KnowledgeSuggestionState
 import me.ash.reader.ui.ext.collectAsStateValue
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,7 +89,7 @@ fun KnowledgeQaPage(
     val messages = viewModel.messages.collectAsStateValue()
     val loading = viewModel.loading.collectAsStateValue()
     val suggestions = viewModel.suggestions.collectAsStateValue()
-    val suggestionsLoading = viewModel.suggestionsLoading.collectAsStateValue()
+    val suggestionState = viewModel.suggestionState.collectAsStateValue()
     val count = viewModel.starredCount.collectAsStateValue()
     val pageBackground = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
         Color.Black
@@ -171,7 +173,7 @@ fun KnowledgeQaPage(
             KnowledgeEmptyState(
                 count = count,
                 suggestions = suggestions,
-                suggestionsLoading = suggestionsLoading,
+                suggestionState = suggestionState,
                 onAsk = viewModel::ask,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
@@ -200,7 +202,7 @@ fun KnowledgeQaPage(
 private fun KnowledgeEmptyState(
     count: Int,
     suggestions: List<String>,
-    suggestionsLoading: Boolean,
+    suggestionState: KnowledgeSuggestionState,
     onAsk: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -271,16 +273,40 @@ private fun KnowledgeEmptyState(
                     }
                 }
             }
-        } else if (count > 0 && suggestionsLoading) {
-            ThinkingIndicator(label = "正在理解知识库")
         } else if (count > 0) {
-            Text(
-                "暂时没有生成合适的探索问题，你仍然可以直接向知识库提问。",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            when (suggestionState.status) {
+                KnowledgeSuggestionCache.STATUS_PREPARING,
+                KnowledgeSuggestionCache.STATUS_SYNCING ->
+                    ThinkingIndicator(label = "正在同步星标文章")
+                KnowledgeSuggestionCache.STATUS_GENERATING ->
+                    ThinkingIndicator(label = "正在理解知识库")
+                KnowledgeSuggestionCache.STATUS_CONFIGURATION_REQUIRED ->
+                    SuggestionStatusText("请先在“大模型与知识库”中完成数据集和对话助手配置。")
+                KnowledgeSuggestionCache.STATUS_FAILED ->
+                    SuggestionStatusText(
+                        suggestionState.errorMessage
+                            ?: "后台生成探索问题失败，系统会在网络可用时自动重试。",
+                        isError = true,
+                    )
+                KnowledgeSuggestionCache.STATUS_INSUFFICIENT_CONTENT ->
+                    SuggestionStatusText(
+                        suggestionState.errorMessage
+                            ?: "星标文章仍在解析，暂时还没有足够内容生成探索问题。",
+                    )
+                else -> SuggestionStatusText("探索问题将在后台自动更新，你仍然可以直接提问。")
+            }
         }
     }
+}
+
+@Composable
+private fun SuggestionStatusText(text: String, isError: Boolean = false) {
+    Text(
+        text,
+        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

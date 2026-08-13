@@ -18,6 +18,7 @@ import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.RagSource
 import me.ash.reader.domain.service.RagflowRepository
 import me.ash.reader.domain.service.KnowledgeSuggestionService
+import me.ash.reader.domain.service.KnowledgeSuggestionState
 
 data class QaMessage(
     val question: String,
@@ -44,8 +45,8 @@ class KnowledgeQaViewModel @Inject constructor(
     val loading = _loading.asStateFlow()
     private val _suggestions = MutableStateFlow<List<String>>(emptyList())
     val suggestions = _suggestions.asStateFlow()
-    private val _suggestionsLoading = MutableStateFlow(true)
-    val suggestionsLoading = _suggestionsLoading.asStateFlow()
+    private val _suggestionState = MutableStateFlow(KnowledgeSuggestionState())
+    val suggestionState = _suggestionState.asStateFlow()
     private val accountId = accountService.getCurrentAccountId()
     private var sessionId: String? = null
     private var askJob: Job? = null
@@ -54,7 +55,11 @@ class KnowledgeQaViewModel @Inject constructor(
         viewModelScope.launch {
             suggestionService.observeCachedQuestions(accountId).collect { cached ->
                 _suggestions.value = cached.shuffled().take(3)
-                _suggestionsLoading.value = false
+            }
+        }
+        viewModelScope.launch {
+            suggestionService.observeState(accountId).collect { state ->
+                _suggestionState.value = state
             }
         }
     }
