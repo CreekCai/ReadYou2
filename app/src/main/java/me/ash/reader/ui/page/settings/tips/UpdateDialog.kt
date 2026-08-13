@@ -115,6 +115,7 @@ fun UpdateDialog(
                 Text(
                     text = stringResource(R.string.update) + when (downloadState) {
                         is Download.NotYet -> ""
+                        is Download.Failed -> ""
                         is Download.Progress -> " ${downloadState.percent}%"
                         is Download.Finished -> {
                             if (context.packageManager.canRequestPackageInstalls()) {
