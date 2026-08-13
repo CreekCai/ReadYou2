@@ -207,9 +207,9 @@ private fun KnowledgeEmptyState(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier.padding(28.dp),
+        modifier.padding(horizontal = 28.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Top,
     ) {
         Surface(
             shape = MaterialTheme.shapes.extraLarge,
@@ -249,7 +249,7 @@ private fun KnowledgeEmptyState(
                         !textMeasurer.measure(
                             text = question,
                             style = textStyle,
-                            maxLines = 3,
+                            maxLines = KNOWLEDGE_SUGGESTION_MAX_LINES,
                             constraints = Constraints(
                                 maxWidth = with(density) { availableTextWidth.roundToPx() },
                             ),
@@ -342,6 +342,7 @@ private fun SuggestionRow(
             text,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
+            maxLines = KNOWLEDGE_SUGGESTION_MAX_LINES,
         )
         Spacer(Modifier.width(12.dp))
         Icon(
@@ -352,6 +353,8 @@ private fun SuggestionRow(
         )
     }
 }
+
+internal const val KNOWLEDGE_SUGGESTION_MAX_LINES = 4
 
 @Composable
 private fun KnowledgeExchange(

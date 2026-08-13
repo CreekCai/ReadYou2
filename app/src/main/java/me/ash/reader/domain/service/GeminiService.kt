@@ -337,7 +337,14 @@ internal fun chatCompletionPayload(
     "max_tokens" to AI_MAX_OUTPUT_TOKENS,
     "temperature" to 0.3,
 ).apply {
-    if (siliconFlow) put("enable_thinking", false)
+    if (siliconFlow && supportsSiliconFlowThinkingControl(modelName)) {
+        put("enable_thinking", false)
+    }
+}
+
+internal fun supportsSiliconFlowThinkingControl(modelName: String): Boolean {
+    val normalizedModel = modelName.trim().lowercase()
+    return normalizedModel.startsWith("qwen/qwen3")
 }
 
 internal fun isSiliconFlowBaseUrl(baseUrl: String): Boolean =

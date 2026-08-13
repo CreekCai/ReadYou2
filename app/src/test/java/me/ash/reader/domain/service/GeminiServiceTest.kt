@@ -82,6 +82,13 @@ class GeminiServiceTest {
     }
 
     @Test
+    fun `SiliconFlow translation payload omits unsupported reasoning flag`() {
+        val payload = chatCompletionPayload("tencent/Hunyuan-MT-7B", "article", siliconFlow = true)
+        assertFalse(payload.containsKey("enable_thinking"))
+        assertEquals(AI_MAX_OUTPUT_TOKENS, payload["max_tokens"])
+    }
+
+    @Test
     fun `OpenAI chat payload does not include provider-specific reasoning flag`() {
         val payload = chatCompletionPayload("gpt-4.1-mini", "article", siliconFlow = false)
         assertFalse(payload.containsKey("enable_thinking"))

@@ -4,6 +4,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class KnowledgeSuggestionSelectionTest {
+
+    @Test
+    fun `suggestions allow up to four lines`() {
+        assertEquals(4, KNOWLEDGE_SUGGESTION_MAX_LINES)
+    }
+
     @Test
     fun `filters full pool before taking three suggestions`() {
         val suggestions = listOf(
