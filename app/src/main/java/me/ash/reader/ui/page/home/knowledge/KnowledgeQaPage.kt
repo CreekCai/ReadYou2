@@ -41,6 +41,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +71,11 @@ fun KnowledgeQaPage(
     val messages = viewModel.messages.collectAsStateValue()
     val loading = viewModel.loading.collectAsStateValue()
     val count = viewModel.starredCount.collectAsStateValue()
+    val pageBackground = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+        Color.Black
+    } else {
+        MaterialTheme.colorScheme.background
+    }
     val listState = rememberLazyListState()
     var input by remember { mutableStateOf("") }
     val suggestions = remember {
@@ -107,10 +113,14 @@ fun KnowledgeQaPage(
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = pageBackground,
+                    scrolledContainerColor = pageBackground,
+                ),
             )
         },
         bottomBar = {
-            Surface(tonalElevation = 3.dp) {
+            Surface(color = pageBackground, tonalElevation = 0.dp) {
                 Row(
                     Modifier
                         .navigationBarsPadding()
@@ -140,6 +150,7 @@ fun KnowledgeQaPage(
                 }
             }
         },
+        containerColor = pageBackground,
     ) { padding ->
         if (messages.isEmpty()) {
             KnowledgeEmptyState(

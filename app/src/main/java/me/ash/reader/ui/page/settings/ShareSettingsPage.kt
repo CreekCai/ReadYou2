@@ -17,6 +17,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,6 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -65,6 +68,11 @@ fun ShareSettingsPage(
     val getNoteApiKey = LocalGetNoteApiKey.current
     val getNoteClientId = LocalGetNoteClientId.current
     val getNoteTopicId = LocalGetNoteTopicId.current
+    val pageBackground = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+        Color.Black
+    } else {
+        MaterialTheme.colorScheme.background
+    }
 
     var expandedMode by remember { mutableStateOf(false) }
     var endpointText by remember(typeChoEndpoint) { mutableStateOf(typeChoEndpoint) }
@@ -113,8 +121,13 @@ fun ShareSettingsPage(
                         onClick = onBack,
                     )
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = pageBackground,
+                    scrolledContainerColor = pageBackground,
+                ),
             )
         },
+        containerColor = pageBackground,
     ) { paddingValues ->
         LazyColumn(modifier = Modifier.padding(paddingValues)) {
             item {

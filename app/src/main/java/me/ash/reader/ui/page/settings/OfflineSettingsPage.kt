@@ -37,6 +37,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -106,6 +109,11 @@ fun OfflineSettingsPage(
     val articles = viewModel.articles.collectAsStateValue()
     val entries = viewModel.entries.collectAsStateValue()
     val isClearing = viewModel.isClearing.collectAsStateValue()
+    val pageBackground = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+        Color.Black
+    } else {
+        MaterialTheme.colorScheme.background
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     var expanded by remember { mutableStateOf(false) }
     var showClearConfirmation by remember { mutableStateOf(false) }
@@ -154,9 +162,14 @@ fun OfflineSettingsPage(
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = pageBackground,
+                    scrolledContainerColor = pageBackground,
+                ),
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = pageBackground,
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),

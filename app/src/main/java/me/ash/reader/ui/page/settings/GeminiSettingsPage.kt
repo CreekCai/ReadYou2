@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -105,6 +108,11 @@ fun GeminiSettingsPage(
     val settings = LocalSettings.current
     val status by viewModel.status.collectAsState()
     val testing by viewModel.testing.collectAsState()
+    val pageBackground = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+        Color.Black
+    } else {
+        MaterialTheme.colorScheme.background
+    }
 
     var provider by remember { mutableStateOf(settings.aiProvider) }
     var providerExpanded by remember { mutableStateOf(false) }
@@ -158,8 +166,13 @@ fun GeminiSettingsPage(
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = pageBackground,
+                    scrolledContainerColor = pageBackground,
+                ),
             )
         },
+        containerColor = pageBackground,
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),

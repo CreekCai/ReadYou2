@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,16 +25,15 @@ import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material.icons.rounded.DownloadForOffline
-import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.FiberManualRecord
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -52,6 +52,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
@@ -221,8 +224,6 @@ fun ArticleItem(
                 }
             }
 
-            // Right
-            OfflineStatusIcon(offlineStatus)
         }
 
         // Bottom
@@ -237,26 +238,49 @@ fun ArticleItem(
             Column(modifier = Modifier.weight(1f)) {
 
                 // Title
-                Row {
-                    Text(
-                        text = title,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style =
-                            MaterialTheme.typography.titleMedium
-                                .applyTextDirection(title.requiresBidi())
-                                .merge(lineHeight = 22.sp),
-                        maxLines =
-                            if (articleListDesc != FlowArticleListDescPreference.NONE) 2 else 4,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (!articleListFeedName.value && !articleListDate.value) {
-                        if (isStarred) {
-                            StarredIcon()
-                        } else {
-                            Spacer(modifier = Modifier.width(16.dp))
+                Column(
+                    modifier = if (offlineStatus != null) {
+                        Modifier.semantics {
+                            stateDescription = when (offlineStatus) {
+                                OfflineArticle.STATUS_SAVING -> "正在保存离线文章"
+                                OfflineArticle.STATUS_AVAILABLE -> "已离线"
+                                OfflineArticle.STATUS_FAILED -> "离线保存失败"
+                                else -> ""
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                ) {
+                    Row {
+                        Text(
+                            text = title,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style =
+                                MaterialTheme.typography.titleMedium
+                                    .applyTextDirection(title.requiresBidi())
+                                    .merge(
+                                        lineHeight = 22.sp,
+                                        textDecoration = if (offlineStatus == OfflineArticle.STATUS_AVAILABLE) {
+                                            TextDecoration.Underline
+                                        } else {
+                                            TextDecoration.None
+                                        },
+                                    ),
+                            maxLines =
+                                if (articleListDesc != FlowArticleListDescPreference.NONE) 2 else 4,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (!articleListFeedName.value && !articleListDate.value) {
+                            if (isStarred) {
+                                StarredIcon()
+                            } else {
+                                Spacer(modifier = Modifier.width(16.dp))
+                            }
                         }
                     }
+                    OfflineStatusLine(offlineStatus)
                 }
 
                 // Description
@@ -314,23 +338,15 @@ fun StarredIcon(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun OfflineStatusIcon(status: Int?) {
+private fun OfflineStatusLine(status: Int?) {
     when (status) {
-        OfflineArticle.STATUS_SAVING -> CircularProgressIndicator(
-            modifier = Modifier.size(14.dp),
-            strokeWidth = 2.dp,
+        OfflineArticle.STATUS_SAVING -> LinearProgressIndicator(
+            modifier = Modifier.fillMaxWidth().padding(top = 3.dp).height(2.dp),
         )
-        OfflineArticle.STATUS_AVAILABLE -> Icon(
-            imageVector = Icons.Rounded.DownloadDone,
-            contentDescription = "已离线",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp),
-        )
-        OfflineArticle.STATUS_FAILED -> Icon(
-            imageVector = Icons.Rounded.ErrorOutline,
-            contentDescription = "离线保存失败",
-            tint = MaterialTheme.colorScheme.error,
-            modifier = Modifier.size(16.dp),
+        OfflineArticle.STATUS_FAILED -> HorizontalDivider(
+            modifier = Modifier.fillMaxWidth(0.28f).padding(top = 3.dp),
+            thickness = 2.dp,
+            color = MaterialTheme.colorScheme.error,
         )
     }
 }
@@ -656,7 +672,12 @@ fun ArticleItemMenuContent(
             enabled = offlineStatus != OfflineArticle.STATUS_SAVING,
             leadingIcon = {
                 when (offlineStatus) {
-                    OfflineArticle.STATUS_SAVING -> CircularProgressIndicator(Modifier.size(iconSize), strokeWidth = 2.dp)
+                    OfflineArticle.STATUS_SAVING -> Icon(
+                        Icons.Rounded.DownloadForOffline,
+                        null,
+                        Modifier.size(iconSize),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
                     OfflineArticle.STATUS_FAILED -> Icon(Icons.Rounded.ErrorOutline, null, Modifier.size(iconSize))
                     else -> Icon(if (isOffline) Icons.Rounded.DeleteOutline else Icons.Rounded.DownloadForOffline, null, Modifier.size(iconSize))
                 }
