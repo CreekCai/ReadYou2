@@ -12,6 +12,7 @@ import me.ash.reader.domain.model.article.ArticleAiContent
 import me.ash.reader.domain.model.article.OfflineArticle
 import me.ash.reader.domain.model.article.RagflowDocument
 import me.ash.reader.domain.model.article.SavedKnowledgeAnswer
+import me.ash.reader.domain.model.article.KnowledgeSuggestionCache
 import me.ash.reader.domain.model.feed.Feed
 import me.ash.reader.domain.model.group.Group
 import me.ash.reader.domain.repository.AccountDao
@@ -22,6 +23,7 @@ import me.ash.reader.domain.repository.GroupDao
 import me.ash.reader.domain.repository.OfflineArticleDao
 import me.ash.reader.domain.repository.RagflowDocumentDao
 import me.ash.reader.domain.repository.SavedKnowledgeAnswerDao
+import me.ash.reader.domain.repository.KnowledgeSuggestionCacheDao
 import me.ash.reader.infrastructure.preference.*
 import me.ash.reader.ui.ext.toInt
 import java.util.*
@@ -37,8 +39,9 @@ import java.util.*
         OfflineArticle::class,
         RagflowDocument::class,
         SavedKnowledgeAnswer::class,
+        KnowledgeSuggestionCache::class,
     ],
-    version = 10,
+    version = 11,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 5, to = 7),
@@ -65,6 +68,7 @@ abstract class AndroidDatabase : RoomDatabase() {
     abstract fun offlineArticleDao(): OfflineArticleDao
     abstract fun ragflowDocumentDao(): RagflowDocumentDao
     abstract fun savedKnowledgeAnswerDao(): SavedKnowledgeAnswerDao
+    abstract fun knowledgeSuggestionCacheDao(): KnowledgeSuggestionCacheDao
 
     companion object {
 
@@ -105,6 +109,7 @@ val allMigrations = arrayOf(
     MIGRATION_7_8,
     MIGRATION_8_9,
     MIGRATION_9_10,
+    MIGRATION_10_11,
 )
 
 @Suppress("ClassName")
@@ -263,5 +268,21 @@ object MIGRATION_9_10 : Migration(9, 10) {
         )
         database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_knowledge_answer_accountId ON saved_knowledge_answer(accountId)")
         database.execSQL("CREATE INDEX IF NOT EXISTS index_saved_knowledge_answer_createdAt ON saved_knowledge_answer(createdAt)")
+    }
+}
+
+@Suppress("ClassName")
+object MIGRATION_10_11 : Migration(10, 11) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS knowledge_suggestion_cache (
+                accountId INTEGER NOT NULL PRIMARY KEY,
+                questionsJson TEXT NOT NULL,
+                snapshotJson TEXT NOT NULL,
+                generatedAt INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
     }
 }

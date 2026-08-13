@@ -17,6 +17,7 @@ import me.ash.reader.domain.model.article.SavedKnowledgeAnswer
 import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.RagSource
 import me.ash.reader.domain.service.RagflowRepository
+import me.ash.reader.domain.service.KnowledgeSuggestionService
 
 data class QaMessage(
     val question: String,
@@ -33,6 +34,7 @@ class KnowledgeQaViewModel @Inject constructor(
     private val savedAnswerDao: SavedKnowledgeAnswerDao,
     accountService: AccountService,
     private val ragflow: RagflowRepository,
+    private val suggestionService: KnowledgeSuggestionService,
 ) : ViewModel() {
     val starredCount = articleDao.observeStarredCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
@@ -50,15 +52,8 @@ class KnowledgeQaViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            try {
-                if (articleDao.queryAllStarred(accountId).isEmpty()) {
-                    _suggestions.value = emptyList()
-                    return@launch
-                }
-                _suggestions.value = if (ragflow.isConfigured()) {
-                    ragflow.suggestQuestions().getOrDefault(emptyList()).shuffled().take(3)
-                } else emptyList()
-            } finally {
+            suggestionService.observeCachedQuestions(accountId).collect { cached ->
+                _suggestions.value = cached.shuffled().take(3)
                 _suggestionsLoading.value = false
             }
         }

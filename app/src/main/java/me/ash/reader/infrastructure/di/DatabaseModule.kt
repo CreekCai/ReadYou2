@@ -14,6 +14,7 @@ import me.ash.reader.domain.repository.GroupDao
 import me.ash.reader.domain.repository.OfflineArticleDao
 import me.ash.reader.domain.repository.RagflowDocumentDao
 import me.ash.reader.domain.repository.SavedKnowledgeAnswerDao
+import me.ash.reader.domain.repository.KnowledgeSuggestionCacheDao
 import me.ash.reader.infrastructure.db.AndroidDatabase
 import javax.inject.Singleton
 
@@ -65,6 +66,10 @@ object DatabaseModule {
     @Provides @Singleton
     fun provideSavedKnowledgeAnswerDao(androidDatabase: AndroidDatabase): SavedKnowledgeAnswerDao =
         androidDatabase.savedKnowledgeAnswerDao()
+
+    @Provides @Singleton
+    fun provideKnowledgeSuggestionCacheDao(androidDatabase: AndroidDatabase): KnowledgeSuggestionCacheDao =
+        androidDatabase.knowledgeSuggestionCacheDao()
 
     @Provides
     @Singleton

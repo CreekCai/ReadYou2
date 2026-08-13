@@ -265,6 +265,24 @@ class RagflowRepository @Inject constructor(
         Unit
     } }
 
+    suspend fun test(
+        baseUrl: String,
+        apiKey: String,
+        datasetId: String,
+    ): Result<Unit> = withContext(ioDispatcher) { runCatching {
+        require(baseUrl.isNotBlank()) { "RAGFlow 地址为空" }
+        require(apiKey.isNotBlank()) { "RAGFlow API Key 为空" }
+        require(datasetId.isNotBlank()) { "RAGFlow 数据集未选择" }
+        execute(
+            Request.Builder()
+                .url(url(baseUrl, "/api/v1/datasets?id=$datasetId"))
+                .headers(auth(apiKey))
+                .get()
+                .build()
+        )
+        Unit
+    } }
+
     private fun deleteRemote(id: String) {
         if (!isConfigured()) return
         val body = JSONObject().put("ids", JSONArray().put(id)).toString().toRequestBody(json)

@@ -20,6 +20,7 @@ import me.ash.reader.BuildConfig
 import me.ash.reader.domain.service.AccountService
 import me.ash.reader.domain.service.AppService
 import me.ash.reader.domain.service.OfflineCleanupWorker
+import me.ash.reader.domain.service.KnowledgeSuggestionWorker
 import me.ash.reader.domain.service.RagflowBackfillWorker
 import me.ash.reader.domain.service.RssService
 import me.ash.reader.infrastructure.di.ApplicationScope
@@ -105,6 +106,7 @@ class AndroidApp : Application(), Configuration.Provider {
             OfflineCleanupWorker.schedule(it)
             RagflowBackfillWorker.enqueue(it)
             RagflowBackfillWorker.schedule(it)
+            KnowledgeSuggestionWorker.schedule(it)
         }
     }
 

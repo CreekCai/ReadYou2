@@ -29,6 +29,32 @@ class GeminiService @Inject constructor(
     private val gson = Gson()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
+    suspend fun testModel(
+        provider: AiProviderPreference,
+        modelName: String,
+        apiKey: String,
+        baseUrl: String,
+    ): String = withContext(ioDispatcher) {
+        require(modelName.isNotBlank()) { "模型名称为空" }
+        when (provider) {
+            AiProviderPreference.OpenAI -> generateCodexContent(
+                modelName = modelName,
+                apiKey = apiKey,
+                baseUrl = baseUrl,
+                prompt = "This is a connection test. Reply with OK only.",
+                content = "OK",
+                fallback = "No response generated.",
+            )
+            else -> generateGeminiContent(
+                modelName = modelName,
+                apiKey = apiKey,
+                prompt = "This is a connection test. Reply with OK only.",
+                content = "OK",
+                fallback = "No response generated.",
+            )
+        }
+    }
+
     suspend fun summarize(content: String): String = withContext(ioDispatcher) {
         when (settingsProvider.settings.aiProvider) {
             AiProviderPreference.OpenAI ->
@@ -134,10 +160,7 @@ class GeminiService @Inject constructor(
             }
 
             if (response.code != 404 && response.code != 405) {
-                throw Exception(
-                    parseOpenAiError(body)
-                        ?: "OpenAI request failed: HTTP ${response.code}"
-                )
+                throw openAiRequestException("Responses API", responsesRequest.url.toString(), response.code, body)
             }
         }
 
@@ -166,10 +189,7 @@ class GeminiService @Inject constructor(
             val body = response.body.string()
 
             if (!response.isSuccessful) {
-                throw Exception(
-                    parseOpenAiError(body)
-                        ?: "OpenAI-compatible request failed: HTTP ${response.code}"
-                )
+                throw openAiRequestException("Chat Completions API", chatRequest.url.toString(), response.code, body)
             }
 
             return parseChatCompletionText(body) ?: fallback
@@ -213,6 +233,25 @@ class GeminiService @Inject constructor(
                 ?.get("message")
                 ?.asString
         }.getOrNull()
+
+    private fun openAiRequestException(
+        api: String,
+        url: String,
+        status: Int,
+        body: String,
+    ): Exception {
+        val serverMessage = parseOpenAiError(body)
+        val responseExcerpt = body.trim().take(1_000).ifBlank { "<empty>" }
+        return Exception(
+            buildString {
+                appendLine("$api request failed")
+                appendLine("URL: $url")
+                appendLine("HTTP: $status")
+                if (!serverMessage.isNullOrBlank()) appendLine("Message: $serverMessage")
+                append("Response: $responseExcerpt")
+            }
+        )
+    }
 
     private fun parseOpenAiText(body: String): String? {
         val root = runCatching { JsonParser.parseString(body).asJsonObject }.getOrNull() ?: return null

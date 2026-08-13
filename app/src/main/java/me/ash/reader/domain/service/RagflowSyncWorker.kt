@@ -15,12 +15,16 @@ class RagflowSyncWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val articleDao: ArticleDao,
     private val repository: RagflowRepository,
+    private val suggestionService: KnowledgeSuggestionService,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val id = inputData.getString(KEY_ID) ?: return Result.failure()
         return runCatching {
             val article = articleDao.queryById(id)
             if (article?.article?.isStarred == true) repository.sync(article) else repository.delete(id)
+            article?.article?.accountId?.let {
+                runCatching { suggestionService.refreshIfNeeded(it) }
+            }
         }.fold({ Result.success() }, { if (runAttemptCount < 5) Result.retry() else Result.failure() })
     }
     companion object {
@@ -41,6 +45,7 @@ class RagflowBackfillWorker @AssistedInject constructor(
     private val articleDao: ArticleDao,
     private val repository: RagflowRepository,
     private val mappingDao: RagflowDocumentDao,
+    private val suggestionService: KnowledgeSuggestionService,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result = runCatching {
         if (repository.isConfigured()) {
@@ -48,6 +53,9 @@ class RagflowBackfillWorker @AssistedInject constructor(
             starred.forEach { repository.sync(it) }
             val ids = starred.mapTo(mutableSetOf()) { it.article.id }
             mappingDao.all().filter { it.articleId !in ids }.forEach { repository.delete(it.articleId) }
+            starred.map { it.article.accountId }.distinct().forEach {
+                runCatching { suggestionService.refreshIfNeeded(it) }
+            }
         }
     }.fold({ Result.success() }, { if (runAttemptCount < 5) Result.retry() else Result.failure() })
     companion object {

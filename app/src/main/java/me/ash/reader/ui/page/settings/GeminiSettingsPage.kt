@@ -1,5 +1,7 @@
 package me.ash.reader.ui.page.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +55,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import me.ash.reader.domain.service.GeminiService
 import me.ash.reader.domain.service.RagflowBackfillWorker
 import me.ash.reader.domain.service.RagflowCatalog
 import me.ash.reader.domain.service.RagflowRepository
@@ -72,12 +76,15 @@ import me.ash.reader.infrastructure.preference.RagflowDatasetIdPreference
 @HiltViewModel
 class AiSettingsViewModel @Inject constructor(
     private val ragflow: RagflowRepository,
+    private val geminiService: GeminiService,
     private val workManager: WorkManager,
 ) : ViewModel() {
     private val _status = MutableStateFlow<String?>(null)
     val status = _status.asStateFlow()
     private val _testing = MutableStateFlow(false)
     val testing = _testing.asStateFlow()
+    private val _diagnosticLog = MutableStateFlow<String?>(null)
+    val diagnosticLog = _diagnosticLog.asStateFlow()
     private val _catalog = MutableStateFlow<RagflowCatalog?>(null)
     val catalog = _catalog.asStateFlow()
     private val _discovering = MutableStateFlow(false)
@@ -87,15 +94,65 @@ class AiSettingsViewModel @Inject constructor(
         _status.value = "配置已保存"
     }
 
-    fun test() {
+    fun test(config: AiConnectionTestConfig) {
         if (_testing.value) return
         viewModelScope.launch {
             _testing.value = true
-            _status.value = "正在连接 RAGFlow…"
-            _status.value = ragflow.test().fold({ "连接成功" }, { it.message ?: "连接失败" })
-            _testing.value = false
+            _diagnosticLog.value = null
+            _status.value = "正在测试摘要、翻译与 RAGFlow…"
+            try {
+                val results = buildList {
+                    add(testAiModel("摘要模型", config.summaryModel, config))
+                    add(testAiModel("翻译模型", config.translationModel, config))
+                    if (config.hasAnyRagflowValue) {
+                        add(
+                            runCatching {
+                                ragflow.test(
+                                    baseUrl = config.ragflowBaseUrl,
+                                    apiKey = config.ragflowApiKey,
+                                    datasetId = config.ragflowDatasetId,
+                                ).getOrThrow()
+                            }.fold(
+                                { ConnectionTestResult("RAGFlow", true) },
+                                { ConnectionTestResult("RAGFlow", false, it) },
+                            )
+                        )
+                    } else {
+                        add(ConnectionTestResult("RAGFlow", true, skipped = true))
+                    }
+                }
+                val failures = results.filter { !it.success }
+                _status.value = results.joinToString("\n") {
+                    when {
+                        it.skipped -> "○ ${it.name}：未配置，已跳过"
+                        it.success -> "✓ ${it.name}：连接成功"
+                        else -> "✕ ${it.name}：连接失败（诊断日志已复制）"
+                    }
+                }
+                if (failures.isNotEmpty()) {
+                    _diagnosticLog.value = buildDiagnosticLog(config, results)
+                }
+            } finally {
+                _testing.value = false
+            }
         }
     }
+
+    private suspend fun testAiModel(
+        name: String,
+        model: String,
+        config: AiConnectionTestConfig,
+    ): ConnectionTestResult = runCatching {
+        geminiService.testModel(
+            provider = config.provider,
+            modelName = model,
+            apiKey = config.aiApiKey,
+            baseUrl = config.openAiBaseUrl,
+        )
+    }.fold(
+        { ConnectionTestResult(name, true) },
+        { ConnectionTestResult(name, false, it) },
+    )
 
     fun discover(baseUrl: String, apiKey: String) {
         if (_discovering.value) return
@@ -131,6 +188,50 @@ class AiSettingsViewModel @Inject constructor(
     }
 }
 
+data class AiConnectionTestConfig(
+    val provider: AiProviderPreference,
+    val openAiBaseUrl: String,
+    val aiApiKey: String,
+    val summaryModel: String,
+    val translationModel: String,
+    val ragflowBaseUrl: String,
+    val ragflowApiKey: String,
+    val ragflowDatasetId: String,
+) {
+    val hasAnyRagflowValue = listOf(ragflowBaseUrl, ragflowApiKey, ragflowDatasetId).any(String::isNotBlank)
+}
+
+private data class ConnectionTestResult(
+    val name: String,
+    val success: Boolean,
+    val error: Throwable? = null,
+    val skipped: Boolean = false,
+)
+
+private fun buildDiagnosticLog(
+    config: AiConnectionTestConfig,
+    results: List<ConnectionTestResult>,
+): String {
+    val secrets = listOf(config.aiApiKey, config.ragflowApiKey).filter(String::isNotBlank)
+    fun redact(value: String): String = secrets.fold(value) { text, secret -> text.replace(secret, "<REDACTED>") }
+    return buildString {
+        appendLine("ReadYou AI connection diagnostics")
+        appendLine("Provider: ${config.provider.title}")
+        appendLine("OpenAI Base URL: ${config.openAiBaseUrl.ifBlank { "<not set>" }}")
+        appendLine("Summary model: ${config.summaryModel.ifBlank { "<not set>" }}")
+        appendLine("Translation model: ${config.translationModel.ifBlank { "<not set>" }}")
+        appendLine("RAGFlow Base URL: ${config.ragflowBaseUrl.ifBlank { "<not set>" }}")
+        appendLine("RAGFlow dataset: ${config.ragflowDatasetId.ifBlank { "<not set>" }}")
+        appendLine()
+        results.forEach { result ->
+            appendLine("[${result.name}] ${if (result.skipped) "SKIPPED" else if (result.success) "SUCCESS" else "FAILED"}")
+            result.error?.let { error ->
+                appendLine(redact(error.stackTraceToString()))
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GeminiSettingsPage(
@@ -142,6 +243,7 @@ fun GeminiSettingsPage(
     val settings = LocalSettings.current
     val status by viewModel.status.collectAsState()
     val testing by viewModel.testing.collectAsState()
+    val diagnosticLog by viewModel.diagnosticLog.collectAsState()
     val catalog by viewModel.catalog.collectAsState()
     val discovering by viewModel.discovering.collectAsState()
     val pageBackground = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
@@ -167,6 +269,13 @@ fun GeminiSettingsPage(
     var chatExpanded by remember { mutableStateOf(false) }
     var dirty by remember { mutableStateOf(false) }
     var showErrors by remember { mutableStateOf(false) }
+
+    LaunchedEffect(diagnosticLog) {
+        diagnosticLog?.let { log ->
+            context.getSystemService(ClipboardManager::class.java)
+                .setPrimaryClip(ClipData.newPlainText("ReadYou AI diagnostics", log))
+        }
+    }
 
     val ragStarted = listOf(ragflowBaseUrl, ragflowApiKey, ragflowDatasetId, ragflowChatId).any { it.isNotBlank() }
     val ragUrlValid = ragflowBaseUrl.startsWith("https://") || ragflowBaseUrl.startsWith("http://")
@@ -346,8 +455,21 @@ fun GeminiSettingsPage(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(
-                            onClick = viewModel::test,
-                            enabled = ragComplete && !dirty && !testing,
+                            onClick = {
+                                viewModel.test(
+                                    AiConnectionTestConfig(
+                                        provider = provider,
+                                        openAiBaseUrl = openAiBaseUrl.trim(),
+                                        aiApiKey = if (provider == AiProviderPreference.OpenAI) codexApiKey.trim() else geminiApiKey.trim(),
+                                        summaryModel = if (provider == AiProviderPreference.OpenAI) codexModel.trim() else geminiModel.trim(),
+                                        translationModel = if (provider == AiProviderPreference.OpenAI) codexTranslationModel.trim() else geminiTranslationModel.trim(),
+                                        ragflowBaseUrl = ragflowBaseUrl.trim(),
+                                        ragflowApiKey = ragflowApiKey.trim(),
+                                        ragflowDatasetId = ragflowDatasetId.trim(),
+                                    )
+                                )
+                            },
+                            enabled = !testing,
                             modifier = Modifier.weight(1f),
                         ) {
                             if (testing) {
