@@ -14,6 +14,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.commonmark.parser.Parser
 import org.commonmark.renderer.html.HtmlRenderer
 
@@ -107,7 +108,7 @@ class GeminiService @Inject constructor(
             throw Exception("OpenAI API Key is missing. Please configure it in Settings.")
         }
 
-        val normalizedBaseUrl = baseUrl.trim().trimEnd('/')
+        val normalizedBaseUrl = normalizeOpenAiBaseUrl(baseUrl)
         val input = "$prompt\n\n$content"
 
         val responsesJson =
@@ -236,4 +237,22 @@ class GeminiService @Inject constructor(
 
     private fun JsonObject.getAsJsonObject(name: String) =
         get(name)?.takeIf { it.isJsonObject }?.asJsonObject
+}
+
+internal fun normalizeOpenAiBaseUrl(baseUrl: String): String {
+    var normalized = baseUrl.trim().trimEnd('/')
+    listOf("/chat/completions", "/responses").firstOrNull {
+        normalized.endsWith(it, ignoreCase = true)
+    }?.let { suffix ->
+        normalized = normalized.dropLast(suffix.length).trimEnd('/')
+    }
+
+    val parsed = normalized.toHttpUrlOrNull()
+        ?: throw IllegalArgumentException("OpenAI Base URL is invalid. Please check it in Settings.")
+    val apiRoot = if (parsed.encodedPath == "/") {
+        parsed.newBuilder().addPathSegment("v1").build()
+    } else {
+        parsed
+    }
+    return apiRoot.toString().trimEnd('/')
 }

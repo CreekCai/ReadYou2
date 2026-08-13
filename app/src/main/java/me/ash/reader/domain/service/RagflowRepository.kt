@@ -2,9 +2,11 @@ package me.ash.reader.domain.service
 
 import java.security.MessageDigest
 import java.util.Date
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import me.ash.reader.domain.model.article.ArticleWithFeed
 import me.ash.reader.domain.model.article.RagflowDocument
 import me.ash.reader.domain.repository.RagflowDocumentDao
@@ -110,6 +112,7 @@ class RagflowRepository @Inject constructor(
     suspend fun ask(
         question: String,
         sessionId: String?,
+        callTimeoutMillis: Long? = null,
         onUpdate: (RagAnswer) -> Unit = {},
     ): RagAnswer = withContext(ioDispatcher) {
         check(isConfigured()) { "请先在设置中完成 RAGFlow 配置" }
@@ -121,7 +124,11 @@ class RagflowRepository @Inject constructor(
             .headers(auth())
             .post(payload.toString().toRequestBody(json))
             .build()
-        client.newCall(request).execute().use { response ->
+        val call = client.newCall(request)
+        callTimeoutMillis?.let {
+            call.timeout().timeout(it, TimeUnit.MILLISECONDS)
+        }
+        call.execute().use { response ->
             check(response.isSuccessful) { "RAGFlow HTTP ${response.code}" }
             val body = response.body
             var latest = RagAnswer("", sessionId, emptyList())
@@ -131,7 +138,8 @@ class RagflowRepository @Inject constructor(
                 val line = body.source().readUtf8Line()?.trim().orEmpty()
                 if (!line.startsWith("data:")) continue
                 val event = line.removePrefix("data:").trim()
-                if (event.isBlank() || event == "true" || event == "[DONE]") continue
+                if (event.isBlank()) continue
+                if (isRagflowCompletionEvent(event)) break
                 val root = runCatching { JSONObject(event) }.getOrNull() ?: continue
                 val code = root.optInt("code")
                 check(code == 0) { root.optString("message", "RAGFlow 请求失败") }
@@ -174,6 +182,7 @@ class RagflowRepository @Inject constructor(
     }
 
     suspend fun suggestQuestions(): Result<List<String>> = runCatching {
+        withTimeout(SUGGESTIONS_TIMEOUT_MILLIS) {
         val prompt = """
             请先检索并综合理解当前知识库中的全部星标文章。基于实际检索到的内容，洞察用户长期的
             关注点、实际需求、知识缺口、潜在决策，以及用户接下来最可能想探索的问题。
@@ -184,7 +193,11 @@ class RagflowRepository @Inject constructor(
             知识库内容的通用问题。如果检索证据不足，就少生成，不要用泛化问题补足数量。
             只输出问题，每行一个，不要编号、解释、分类或展示思考过程。
         """.trimIndent()
-        ask(prompt, sessionId = null).answer
+        ask(
+            question = prompt,
+            sessionId = null,
+            callTimeoutMillis = SUGGESTIONS_TIMEOUT_MILLIS,
+        ).answer
             .lineSequence()
             .map { line ->
                 line.trim()
@@ -197,6 +210,7 @@ class RagflowRepository @Inject constructor(
             .distinctBy { it.lowercase().filterNot(Char::isWhitespace) }
             .take(12)
             .toList()
+        }
     }
 
     private fun removeReasoning(answer: String): String {
@@ -287,3 +301,8 @@ class RagflowRepository @Inject constructor(
         value
     }
 }
+
+internal const val SUGGESTIONS_TIMEOUT_MILLIS = 60_000L
+
+internal fun isRagflowCompletionEvent(event: String): Boolean =
+    event.equals("true", ignoreCase = true) || event == "[DONE]"
