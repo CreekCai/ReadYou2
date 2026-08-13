@@ -34,7 +34,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -219,7 +218,7 @@ private fun KnowledgeEmptyState(
         Spacer(Modifier.height(28.dp))
         if (suggestions.isNotEmpty()) {
             Text(
-                "从最近上传的文章开始",
+                "为你发现",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
@@ -234,7 +233,7 @@ private fun KnowledgeEmptyState(
             }
         } else if (count > 0) {
             Text(
-                "最近的星标文章同步完成后，这里会出现相关问题。",
+                "星标文章同步完成后，这里会出现为你生成的探索问题。",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -347,9 +346,7 @@ private fun KnowledgeExchange(
                 }
             }
             else -> {
-                Text("正在检索相关星标文章…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(12.dp))
-                LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text("正在思考中", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

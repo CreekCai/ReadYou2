@@ -38,11 +38,25 @@ class KnowledgeQaViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            _suggestions.value = buildSuggestions(
-                articleDao.queryLatestRagflowStarred(accountId, limit = 10)
-                    .map { it.article.title }
-                    .filter(String::isNotBlank)
-            )
+            val titles = articleDao.queryAllStarred(accountId)
+                .map { it.article.title.trim() }
+                .filter(String::isNotBlank)
+                .distinct()
+            if (titles.isEmpty()) {
+                _suggestions.value = emptyList()
+                return@launch
+            }
+            _suggestions.value = INSIGHTFUL_QUESTION_POOL.shuffled().take(3)
+            val generated = if (ragflow.isConfigured()) {
+                ragflow.suggestQuestions(titles.shuffled().take(80)).getOrDefault(emptyList())
+            } else {
+                emptyList()
+            }
+            if (generated.isNotEmpty()) {
+                _suggestions.value = (generated.shuffled() + INSIGHTFUL_QUESTION_POOL.shuffled())
+                    .distinctBy(::normalizedQuestion)
+                    .take(3)
+            }
         }
     }
 
@@ -93,22 +107,27 @@ class KnowledgeQaViewModel @Inject constructor(
         }
     }
 
-    private fun buildSuggestions(titles: List<String>): List<String> {
-        if (titles.isEmpty()) return emptyList()
-        val shuffled = titles.distinct().shuffled()
-        val primary = shuffled[0]
-        val secondary = shuffled.getOrElse(1) { primary }
-        val tertiary = shuffled.getOrElse(2) { secondary }
-        val candidates = buildList {
-            add("《$primary》的核心观点和关键依据是什么？")
-            if (primary != secondary) {
-                add("对比《$primary》和《$secondary》，它们的观点有哪些联系或分歧？")
-            }
-            add("结合最近的文章，《$tertiary》带来了哪些值得行动的启发？")
-            add("围绕《$secondary》，知识库中还有哪些文章可以相互印证？")
-            add("从最近上传的文章看，哪些主题正在反复出现？")
-            add("把《$primary》放进最近十篇文章的上下文中，它最重要的价值是什么？")
-        }
-        return candidates.distinct().shuffled().take(3)
+    private fun normalizedQuestion(question: String): String = question
+        .lowercase()
+        .filterNot(Char::isWhitespace)
+
+    companion object {
+        private val INSIGHTFUL_QUESTION_POOL = listOf(
+            "从我的全部星标文章看，我长期关注的核心主题是什么，它们之间有什么联系？",
+            "我的收藏反映出哪些尚未解决的问题或知识盲区？",
+            "哪些观点在我的知识库中相互矛盾，分歧背后的关键假设是什么？",
+            "如果把这些知识转化为行动，最值得我优先尝试的三件事是什么？",
+            "哪些反复出现的信号可能代表我下一步最值得深入的方向？",
+            "我的关注点发生了怎样的变化，这可能说明我的需求出现了什么转变？",
+            "哪些文章可以组合成一套更完整的认知框架？",
+            "知识库里有哪些容易被忽略、但可能影响判断的重要联系？",
+            "基于我的收藏，我可能正在做什么决策，还缺少哪些关键信息？",
+            "哪些结论得到了多篇文章的共同支持，证据是否足够可靠？",
+            "我的知识库中有哪些共识值得保留，又有哪些观点需要重新验证？",
+            "如果只能保留五条最有价值的洞察，应该是哪五条，为什么？",
+            "有哪些看似无关的主题，其实可以组合成新的解决思路？",
+            "从这些文章推断，我最可能关心但还没有主动提出的问题是什么？",
+            "哪些知识已经可以形成实践方法，哪些仍停留在观点层面？",
+        )
     }
 }

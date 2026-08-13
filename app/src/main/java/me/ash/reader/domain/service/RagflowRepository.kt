@@ -146,11 +146,62 @@ class RagflowRepository @Inject constructor(
                         ?: latest.sessionId,
                     sources = if (sources.isNotEmpty()) sources else latest.sources,
                 )
-                if (latest.answer.isNotBlank()) onUpdate(latest)
+                val visibleAnswer = removeReasoning(latest.answer)
+                if (visibleAnswer.isNotBlank()) {
+                    onUpdate(latest.copy(answer = visibleAnswer))
+                }
             }
-            check(latest.answer.isNotBlank()) { "RAGFlow 未返回答案" }
-            latest
+            val finalAnswer = removeReasoning(latest.answer)
+            check(finalAnswer.isNotBlank()) { "RAGFlow 未返回答案" }
+            latest.copy(answer = finalAnswer)
         }
+    }
+
+    suspend fun suggestQuestions(titles: List<String>): Result<List<String>> = runCatching {
+        if (titles.isEmpty()) return@runCatching emptyList()
+        val catalog = titles.joinToString("\n") { "- $it" }
+        val prompt = """
+            请根据知识库内容和下面这组从全部星标文章中随机抽取的标题，洞察用户长期的关注点、
+            实际需求、知识缺口、潜在决策和可能想继续探索的问题。
+
+            生成 12 个互不重复、能够跨多篇文章检索回答的问题。问题应覆盖主题脉络、观点冲突、
+            趋势变化、证据可靠性、知识缺口和可执行建议，避免只询问某一篇文章的摘要。
+            只输出问题，每行一个，不要编号、解释、分类或展示思考过程。
+
+            星标文章标题：
+            $catalog
+        """.trimIndent()
+        ask(prompt, sessionId = null).answer
+            .lineSequence()
+            .map { line ->
+                line.trim()
+                    .removePrefix("- ")
+                    .removePrefix("* ")
+                    .replace(Regex("^\\d+[.、)]\\s*"), "")
+                    .trim()
+            }
+            .filter { it.length in 12..100 && (it.endsWith("？") || it.endsWith("?")) }
+            .distinctBy { it.lowercase().filterNot(Char::isWhitespace) }
+            .take(12)
+            .toList()
+    }
+
+    private fun removeReasoning(answer: String): String {
+        var visible = answer
+        val completedBlocks = listOf("think", "thinking", "reasoning")
+        completedBlocks.forEach { tag ->
+            visible = visible.replace(
+                Regex("(?is)<$tag(?:\\s[^>]*)?>.*?</$tag>"),
+                "",
+            )
+            visible = visible.replace(
+                Regex("(?is)<$tag(?:\\s[^>]*)?>.*$"),
+                "",
+            )
+        }
+        return visible
+            .replace(Regex("(?is)</?(?:think|thinking|reasoning)(?:\\s[^>]*)?>"), "")
+            .trim()
     }
 
     private fun sourcesFrom(data: JSONObject): List<RagSource> {
