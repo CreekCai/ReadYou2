@@ -12,6 +12,7 @@ import android.view.SoundEffectConstants
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun Banner(
     modifier: Modifier = Modifier,
+    outerPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
     title: String,
     desc: String? = null,
     backgroundColor: Color = MaterialTheme.colorScheme.primaryFixed,
@@ -48,6 +50,7 @@ fun Banner(
 ) {
     Banner(
         modifier = modifier,
+        outerPadding = outerPadding,
         title = title,
         desc = desc,
         backgroundColor = backgroundColor,
@@ -72,6 +75,7 @@ fun Banner(
 @Composable
 fun Banner(
     modifier: Modifier = Modifier,
+    outerPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
     title: String,
     desc: String? = null,
     backgroundColor: Color = MaterialTheme.colorScheme.primaryFixed,
@@ -84,7 +88,7 @@ fun Banner(
 
     Surface(
         modifier = modifier
-            .padding(horizontal = 16.dp)
+            .padding(outerPadding)
             .fillMaxWidth(),
         color = backgroundColor,
         shape = RoundedCornerShape(32.dp),

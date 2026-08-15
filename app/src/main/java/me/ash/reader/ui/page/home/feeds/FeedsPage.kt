@@ -26,7 +26,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.UnfoldLess
 import androidx.compose.material.icons.rounded.UnfoldMore
-import androidx.compose.material.icons.rounded.Bookmarks
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -240,23 +239,30 @@ fun FeedsPage(
                         }
                     }
                     item {
-                        FeedsBanner(
-                            filter = filterState.filter,
-                            desc = importantSum.ifEmpty { stringResource(R.string.loading) },
-                        ) {
-                            feedsViewModel.changeFilter(filterState.copy(group = null, feed = null))
-                            navigationToFlow()
-                        }
-                    }
-                    if (filterState.filter.isStarred()) {
-                        item {
-                            Spacer(Modifier.height(12.dp))
-                            Banner(
-                                title = "已保存的知识库回答",
-                                desc = "查看你保存的问题与答案",
-                                icon = Icons.Rounded.Bookmarks,
-                                onClick = navigateToSavedKnowledge,
+                        if (filterState.filter.isStarred()) {
+                            StarredNavigationCarousel(
+                                filter = filterState.filter,
+                                starredDescription = importantSum.ifEmpty {
+                                    stringResource(R.string.loading)
+                                },
+                                onStarredClick = {
+                                    feedsViewModel.changeFilter(
+                                        filterState.copy(group = null, feed = null)
+                                    )
+                                    navigationToFlow()
+                                },
+                                onSavedKnowledgeClick = navigateToSavedKnowledge,
                             )
+                        } else {
+                            FeedsBanner(
+                                filter = filterState.filter,
+                                desc = importantSum.ifEmpty { stringResource(R.string.loading) },
+                            ) {
+                                feedsViewModel.changeFilter(
+                                    filterState.copy(group = null, feed = null)
+                                )
+                                navigationToFlow()
+                            }
                         }
                     }
 
