@@ -24,12 +24,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,6 +68,12 @@ fun SavedKnowledgePage(
     viewModel: SavedKnowledgeViewModel = hiltViewModel(),
 ) {
     val answers = viewModel.answers.collectAsStateValue()
+    val pageBackground =
+        if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+            Color.Black
+        } else {
+            MaterialTheme.colorScheme.background
+        }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -74,8 +83,14 @@ fun SavedKnowledgePage(
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回")
                     }
                 },
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = pageBackground,
+                        scrolledContainerColor = pageBackground,
+                    ),
             )
         },
+        containerColor = pageBackground,
     ) { padding ->
         if (answers.isEmpty()) {
             Column(
