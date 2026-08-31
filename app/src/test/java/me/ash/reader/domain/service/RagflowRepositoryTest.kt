@@ -18,4 +18,11 @@ class RagflowRepositoryTest {
         assertFalse(isRagflowCompletionEvent("{\"code\":0,\"data\":{}}"))
         assertFalse(isRagflowCompletionEvent(""))
     }
+
+    @Test
+    fun `recognizes first non-empty Ragflow answer`() {
+        assertTrue(hasRagflowAnswer("{\"code\":0,\"data\":{\"answer\":\"OK\"}}"))
+        assertFalse(hasRagflowAnswer("{\"code\":0,\"data\":{\"answer\":\"\"}}"))
+        assertFalse(hasRagflowAnswer("true"))
+    }
 }

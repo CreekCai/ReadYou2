@@ -1,5 +1,6 @@
 package me.ash.reader.domain.service
 
+import java.net.SocketTimeoutException
 import java.security.MessageDigest
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -38,6 +39,9 @@ class RagflowRepository @Inject constructor(
     @IODispatcher private val ioDispatcher: CoroutineDispatcher,
 ) {
     private val json = "application/json; charset=utf-8".toMediaType()
+    private val ragflowClient = client.newBuilder()
+        .readTimeout(RAGFLOW_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
 
     fun isConfigured() = settingsProvider.settings.run { ragflowBaseUrl.isNotBlank() && ragflowApiKey.isNotBlank() && ragflowDatasetId.isNotBlank() && ragflowChatId.isNotBlank() }
 
@@ -124,7 +128,7 @@ class RagflowRepository @Inject constructor(
             .headers(auth())
             .post(payload.toString().toRequestBody(json))
             .build()
-        val call = client.newCall(request)
+        val call = ragflowClient.newCall(request)
         callTimeoutMillis?.let {
             call.timeout().timeout(it, TimeUnit.MILLISECONDS)
         }
@@ -293,18 +297,44 @@ class RagflowRepository @Inject constructor(
         require(chatId.isNotBlank()) { "RAGFlow 对话助手未选择" }
         val payload = JSONObject()
             .put("question", "Reply with OK only.")
-            .put("stream", false)
+            .put("stream", true)
             .toString()
             .toRequestBody(json)
-        val response = execute(
-            Request.Builder()
-                .url(url(baseUrl, "/api/v1/chats/$chatId/completions"))
-                .headers(auth(apiKey))
-                .post(payload)
-                .build()
-        )
-        val data = JSONObject(response).optJSONObject("data")
-        check(!data?.optString("answer").isNullOrBlank()) { "RAGFlow 对话助手未返回回答" }
+        val request = Request.Builder()
+            .url(url(baseUrl, "/api/v1/chats/$chatId/completions"))
+            .headers(auth(apiKey))
+            .post(payload)
+            .build()
+        try {
+            val call = ragflowClient.newCall(request)
+            call.timeout().timeout(RAGFLOW_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            call.execute().use { response ->
+                check(response.isSuccessful) {
+                    "RAGFlow HTTP ${response.code}: ${response.body.string().take(300)}"
+                }
+                val source = response.body.source()
+                var receivedAnswer = false
+                while (!source.exhausted()) {
+                    val line = source.readUtf8Line()?.trim().orEmpty()
+                    if (!line.startsWith("data:")) continue
+                    val event = line.removePrefix("data:").trim()
+                    if (event.isBlank()) continue
+                    if (isRagflowCompletionEvent(event)) break
+                    val root = runCatching { JSONObject(event) }.getOrNull() ?: continue
+                    val code = root.optInt("code")
+                    check(code == 0) { root.optString("message", "RAGFlow 请求失败") }
+                    if (hasRagflowAnswer(event)) {
+                        receivedAnswer = true
+                        break
+                    }
+                }
+                check(receivedAnswer) { "RAGFlow 对话助手未返回回答" }
+            }
+        } catch (error: SocketTimeoutException) {
+            throw SocketTimeoutException(
+                "RAGFlow 对话助手在 ${RAGFLOW_REQUEST_TIMEOUT_SECONDS} 秒内未响应，请检查助手模型、上游 API 或服务器负载",
+            ).apply { initCause(error) }
+        }
         Unit
     } }
 
@@ -346,6 +376,15 @@ class RagflowRepository @Inject constructor(
 }
 
 internal const val SUGGESTIONS_TIMEOUT_MILLIS = 60_000L
+internal const val RAGFLOW_REQUEST_TIMEOUT_SECONDS = 120L
 
 internal fun isRagflowCompletionEvent(event: String): Boolean =
     event.equals("true", ignoreCase = true) || event == "[DONE]"
+
+internal fun hasRagflowAnswer(event: String): Boolean =
+    runCatching {
+        JSONObject(event)
+            .optJSONObject("data")
+            ?.optString("answer")
+            ?.isNotBlank() == true
+    }.getOrDefault(false)

@@ -67,6 +67,7 @@ import me.ash.reader.infrastructure.preference.CodexModelPreference
 import me.ash.reader.infrastructure.preference.CodexTranslationModelPreference
 import me.ash.reader.infrastructure.preference.GeminiApiKeyPreference
 import me.ash.reader.infrastructure.preference.GeminiModelPreference
+import me.ash.reader.infrastructure.preference.GeminiPromptPreference
 import me.ash.reader.infrastructure.preference.GeminiTranslationModelPreference
 import me.ash.reader.infrastructure.preference.LocalSettings
 import me.ash.reader.infrastructure.preference.OpenAiBaseUrlPreference
@@ -286,6 +287,7 @@ fun GeminiSettingsPage(
     var geminiApiKey by remember { mutableStateOf(settings.geminiApiKey) }
     var geminiModel by remember { mutableStateOf(settings.geminiModel) }
     var geminiTranslationModel by remember { mutableStateOf(settings.geminiTranslationModel) }
+    var summaryPrompt by remember { mutableStateOf(settings.geminiPrompt) }
     var ragflowBaseUrl by remember { mutableStateOf(settings.ragflowBaseUrl) }
     var ragflowApiKey by remember { mutableStateOf(settings.ragflowApiKey) }
     var ragflowDatasetId by remember { mutableStateOf(settings.ragflowDatasetId) }
@@ -325,6 +327,7 @@ fun GeminiSettingsPage(
         GeminiApiKeyPreference.put(context, scope, geminiApiKey.trim())
         GeminiModelPreference.put(context, scope, geminiModel.trim())
         GeminiTranslationModelPreference.put(context, scope, geminiTranslationModel.trim())
+        GeminiPromptPreference.put(context, scope, summaryPrompt)
         RagflowBaseUrlPreference.put(context, scope, ragflowBaseUrl.trimEnd('/').trim())
         RagflowApiKeyPreference.put(context, scope, ragflowApiKey.trim())
         RagflowDatasetIdPreference.put(context, scope, ragflowDatasetId.trim())
@@ -398,6 +401,19 @@ fun GeminiSettingsPage(
                 item { ConfigField(geminiApiKey, { geminiApiKey = it; onEdited(it) }, "Gemini API Key", secret = true) }
                 item { ConfigField(geminiModel, { geminiModel = it; onEdited(it) }, "摘要模型") }
                 item { ConfigField(geminiTranslationModel, { geminiTranslationModel = it; onEdited(it) }, "翻译模型") }
+            }
+            item {
+                ConfigField(
+                    value = summaryPrompt,
+                    onValueChange = {
+                        summaryPrompt = it
+                        onEdited(it)
+                    },
+                    label = "摘要提示词",
+                    singleLine = false,
+                    minLines = 3,
+                    maxLines = 6,
+                )
             }
             item {
                 HorizontalDivider()
@@ -599,6 +615,9 @@ private fun ConfigField(
     placeholder: String? = null,
     isError: Boolean = false,
     supporting: String? = null,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
 ) {
     OutlinedTextField(
         value = value,
@@ -608,7 +627,9 @@ private fun ConfigField(
         visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         isError = isError,
         supportingText = supporting?.let { { Text(it) } },
-        singleLine = true,
+        singleLine = singleLine,
+        minLines = minLines,
+        maxLines = maxLines,
         modifier = Modifier.fillMaxWidth(),
     )
 }
