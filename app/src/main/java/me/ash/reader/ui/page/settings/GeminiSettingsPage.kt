@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -200,8 +201,13 @@ class AiSettingsViewModel @Inject constructor(
     }
 
     fun sync() {
-        RagflowBackfillWorker.enqueue(workManager)
-        _status.value = "已加入后台同步队列"
+        RagflowBackfillWorker.enqueue(workManager, force = false)
+        _status.value = "已开始同步新增及变更的星标文章"
+    }
+
+    fun forceSync() {
+        RagflowBackfillWorker.enqueue(workManager, force = true)
+        _status.value = "已开始重新同步全部星标文章"
     }
 }
 
@@ -296,6 +302,7 @@ fun GeminiSettingsPage(
     var chatExpanded by remember { mutableStateOf(false) }
     var dirty by remember { mutableStateOf(false) }
     var showErrors by remember { mutableStateOf(false) }
+    var confirmForceSync by remember { mutableStateOf(false) }
 
     LaunchedEffect(diagnosticLog) {
         diagnosticLog?.let { log ->
@@ -313,6 +320,25 @@ fun GeminiSettingsPage(
         ragflowDatasetId.isNotBlank() && ragflowChatId.isNotBlank()
     val configurationValid = !ragStarted || (credentialsComplete && (!selectionStarted || selectionComplete))
     val onEdited: (String) -> Unit = { dirty = true }
+
+    if (confirmForceSync) {
+        AlertDialog(
+            onDismissRequest = { confirmForceSync = false },
+            title = { Text("重新同步全部星标文章？") },
+            text = { Text("所有星标文章都会重新上传并解析，可能需要较长时间。") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmForceSync = false
+                        viewModel.forceSync()
+                    }
+                ) { Text("重新同步") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { confirmForceSync = false }) { Text("取消") }
+            },
+        )
+    }
 
     fun save() {
         showErrors = true
@@ -505,37 +531,42 @@ fun GeminiSettingsPage(
                     Button(onClick = ::save, enabled = dirty || status == null, modifier = Modifier.fillMaxWidth()) {
                         Text(if (dirty) "保存配置" else "配置已保存")
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.test(
-                                    AiConnectionTestConfig(
-                                        provider = provider,
-                                        openAiBaseUrl = sanitizeOpenAiBaseUrlInput(openAiBaseUrl),
-                                        aiApiKey = if (provider == AiProviderPreference.OpenAI) codexApiKey.trim() else geminiApiKey.trim(),
-                                        summaryModel = if (provider == AiProviderPreference.OpenAI) codexModel.trim() else geminiModel.trim(),
-                                        translationModel = if (provider == AiProviderPreference.OpenAI) codexTranslationModel.trim() else geminiTranslationModel.trim(),
-                                        ragflowBaseUrl = ragflowBaseUrl.trim(),
-                                        ragflowApiKey = ragflowApiKey.trim(),
-                                        ragflowDatasetId = ragflowDatasetId.trim(),
-                                        ragflowChatId = ragflowChatId.trim(),
-                                    )
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.test(
+                                AiConnectionTestConfig(
+                                    provider = provider,
+                                    openAiBaseUrl = sanitizeOpenAiBaseUrlInput(openAiBaseUrl),
+                                    aiApiKey = if (provider == AiProviderPreference.OpenAI) codexApiKey.trim() else geminiApiKey.trim(),
+                                    summaryModel = if (provider == AiProviderPreference.OpenAI) codexModel.trim() else geminiModel.trim(),
+                                    translationModel = if (provider == AiProviderPreference.OpenAI) codexTranslationModel.trim() else geminiTranslationModel.trim(),
+                                    ragflowBaseUrl = ragflowBaseUrl.trim(),
+                                    ragflowApiKey = ragflowApiKey.trim(),
+                                    ragflowDatasetId = ragflowDatasetId.trim(),
+                                    ragflowChatId = ragflowChatId.trim(),
                                 )
-                            },
-                            enabled = !testing,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            if (testing) {
-                                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(8.dp))
-                            }
-                            Text(if (testing) "连接中" else "测试连接")
+                            )
+                        },
+                        enabled = !testing,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (testing) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
                         }
+                        Text(if (testing) "连接中" else "测试连接")
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(
                             onClick = viewModel::sync,
                             enabled = ragComplete && !dirty && !testing,
                             modifier = Modifier.weight(1f),
-                        ) { Text("同步星标文章") }
+                        ) { Text("同步新增及变更") }
+                        OutlinedButton(
+                            onClick = { confirmForceSync = true },
+                            enabled = ragComplete && !dirty && !testing,
+                            modifier = Modifier.weight(1f),
+                        ) { Text("重新同步全部") }
                     }
                     status?.let {
                         Text(

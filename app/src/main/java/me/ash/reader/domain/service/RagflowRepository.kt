@@ -14,6 +14,7 @@ import me.ash.reader.domain.repository.RagflowDocumentDao
 import me.ash.reader.infrastructure.preference.SettingsProvider
 import me.ash.reader.infrastructure.di.IODispatcher
 import me.ash.reader.infrastructure.rss.ReaderCacheHelper
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -30,6 +31,7 @@ data class RagflowCatalog(
     val datasets: List<RagflowOption>,
     val chats: List<RagflowOption>,
 )
+data class RagflowRemoteDocument(val id: String, val name: String)
 
 class RagflowRepository @Inject constructor(
     private val client: OkHttpClient,
@@ -78,7 +80,11 @@ class RagflowRepository @Inject constructor(
             }
         }
 
-    suspend fun sync(article: ArticleWithFeed) = withContext(ioDispatcher) {
+    suspend fun sync(
+        article: ArticleWithFeed,
+        force: Boolean = false,
+        remoteDocuments: MutableList<RagflowRemoteDocument>? = null,
+    ) = withContext(ioDispatcher) {
         if (!isConfigured()) return@withContext
         val a = article.article
         if (!a.isStarred) {
@@ -87,26 +93,112 @@ class RagflowRepository @Inject constructor(
         }
         val html = readerCache.readOrFetchFullContent(a).getOrElse { a.rawDescription }
         val markdown = "# ${a.title}\n\n来源：${article.feed.name}\n原文：${a.link}\n发布日期：${a.date}\n\n${Jsoup.parse(html).text()}"
-        val digest = MessageDigest.getInstance("SHA-256").digest(markdown.toByteArray()).joinToString("") { "%02x".format(it) }
+        val digest = sha256(markdown)
+        val storedDigest = "$RAGFLOW_IDENTITY_VERSION$digest"
+        val documentPrefix = ragflowDocumentPrefix(
+            feedUrl = article.feed.url,
+            articleLink = a.link,
+            title = a.title,
+            publishedAtMillis = a.date.time,
+        )
+        val documentName = "$documentPrefix${digest.take(RAGFLOW_CONTENT_HASH_LENGTH)}.md"
         val old = mappingDao.get(a.id)
-        if (old?.contentHash == digest && old.status == RagflowDocument.STATUS_SYNCED) return@withContext
-        old?.documentId?.let { deleteRemote(it) }
-        mappingDao.upsert(RagflowDocument(a.id, contentHash = digest, status = RagflowDocument.STATUS_PENDING))
+        if (
+            !force &&
+            old?.contentHash == storedDigest &&
+            old.status == RagflowDocument.STATUS_SYNCED
+        ) {
+            return@withContext
+        }
+        val knownRemoteDocuments = remoteDocuments ?: listManagedDocuments()
+        val matchingRemoteDocuments = knownRemoteDocuments.filter { it.name.startsWith(documentPrefix) }
+        val matchingContent = matchingRemoteDocuments.firstOrNull { it.name == documentName }
+        if (
+            !force &&
+            matchingContent != null &&
+            (old == null || old.status == RagflowDocument.STATUS_SYNCED)
+        ) {
+            matchingRemoteDocuments
+                .filterNot { it.id == matchingContent.id }
+                .forEach { staleDocument ->
+                    runCatching { deleteRemote(staleDocument.id) }
+                        .onFailure { error ->
+                            if (!isMissingRagflowDocument(error)) throw error
+                        }
+                    knownRemoteDocuments.removeAll { it.id == staleDocument.id }
+                }
+            mappingDao.upsert(
+                RagflowDocument(
+                    articleId = a.id,
+                    documentId = matchingContent.id,
+                    contentHash = storedDigest,
+                    status = RagflowDocument.STATUS_SYNCED,
+                    syncedAt = Date(),
+                )
+            )
+            return@withContext
+        }
+        (matchingRemoteDocuments.map { it.id } + listOfNotNull(old?.documentId))
+            .distinct()
+            .forEach { documentId ->
+                runCatching { deleteRemote(documentId) }
+                    .onFailure { error ->
+                        // Reconciliation must still work after a document was deleted directly in
+                        // RAGFlow or disappeared between listing and deletion.
+                        if (!isMissingRagflowDocument(error)) throw error
+                    }
+                knownRemoteDocuments.removeAll { it.id == documentId }
+            }
+        mappingDao.upsert(RagflowDocument(a.id, contentHash = storedDigest, status = RagflowDocument.STATUS_PENDING))
         var uploadedId: String? = null
         runCatching {
             val body = MultipartBody.Builder().setType(MultipartBody.FORM)
-                .addFormDataPart("file", "${a.title.take(80)}.md", markdown.toRequestBody("text/markdown; charset=utf-8".toMediaType())).build()
+                .addFormDataPart("file", documentName, markdown.toRequestBody("text/markdown; charset=utf-8".toMediaType())).build()
             val response = execute(Request.Builder().url(url("/api/v1/datasets/${settingsProvider.settings.ragflowDatasetId}/documents")).headers(auth()).post(body).build())
             val data = JSONObject(response).optJSONArray("data") ?: error("RAGFlow 未返回文档")
             val id = data.optJSONObject(0)?.optString("id").orEmpty()
             require(id.isNotBlank()) { "RAGFlow 未返回文档 ID" }
             uploadedId = id
-            mappingDao.upsert(RagflowDocument(a.id, id, digest, RagflowDocument.STATUS_PENDING))
+            knownRemoteDocuments += RagflowRemoteDocument(id, documentName)
+            mappingDao.upsert(RagflowDocument(a.id, id, storedDigest, RagflowDocument.STATUS_PENDING))
             val parseBody = JSONObject().put("document_ids", JSONArray().put(id)).toString().toRequestBody(json)
             execute(Request.Builder().url(url("/api/v1/datasets/${settingsProvider.settings.ragflowDatasetId}/chunks")).headers(auth()).post(parseBody).build())
-            mappingDao.upsert(RagflowDocument(a.id, id, digest, RagflowDocument.STATUS_SYNCED, syncedAt = Date()))
-        }.onFailure { mappingDao.upsert(RagflowDocument(a.id, uploadedId, digest, RagflowDocument.STATUS_FAILED, errorMessage = it.message)) }.getOrThrow()
+            mappingDao.upsert(RagflowDocument(a.id, id, storedDigest, RagflowDocument.STATUS_SYNCED, syncedAt = Date()))
+        }.onFailure { mappingDao.upsert(RagflowDocument(a.id, uploadedId, storedDigest, RagflowDocument.STATUS_FAILED, errorMessage = it.message)) }.getOrThrow()
     }
+
+    suspend fun listManagedDocuments(): MutableList<RagflowRemoteDocument> =
+        withContext(ioDispatcher) {
+            val documents = mutableListOf<RagflowRemoteDocument>()
+            var page = 1
+            var total = Int.MAX_VALUE
+            while (documents.size < total) {
+                val requestUrl = url(
+                    "/api/v1/datasets/${settingsProvider.settings.ragflowDatasetId}/documents"
+                ).toHttpUrl().newBuilder()
+                    .addQueryParameter("page", page.toString())
+                    .addQueryParameter("page_size", RAGFLOW_DOCUMENT_PAGE_SIZE.toString())
+                    .addQueryParameter("keywords", RAGFLOW_DOCUMENT_PREFIX)
+                    .build()
+                val root = JSONObject(
+                    execute(Request.Builder().url(requestUrl).headers(auth()).get().build())
+                )
+                val data = root.optJSONObject("data") ?: break
+                val pageDocuments = data.optJSONArray("docs") ?: JSONArray()
+                total = data.optInt("total", 0)
+                for (index in 0 until pageDocuments.length()) {
+                    val item = pageDocuments.optJSONObject(index) ?: continue
+                    val id = item.optString("id")
+                    val name = item.optString("name")
+                    if (id.isNotBlank() && name.startsWith(RAGFLOW_DOCUMENT_PREFIX)) {
+                        documents += RagflowRemoteDocument(id, name)
+                    }
+                }
+                if (pageDocuments.length() < RAGFLOW_DOCUMENT_PAGE_SIZE) break
+                page++
+            }
+            documents
+        }
 
     suspend fun delete(articleId: String) = withContext(ioDispatcher) {
         mappingDao.get(articleId)?.documentId?.let { deleteRemote(it) }
@@ -377,6 +469,29 @@ class RagflowRepository @Inject constructor(
 
 internal const val SUGGESTIONS_TIMEOUT_MILLIS = 60_000L
 internal const val RAGFLOW_REQUEST_TIMEOUT_SECONDS = 120L
+internal const val RAGFLOW_DOCUMENT_PREFIX = "readyou-"
+internal const val RAGFLOW_IDENTITY_VERSION = "v1:"
+internal const val RAGFLOW_CONTENT_HASH_LENGTH = 16
+internal const val RAGFLOW_DOCUMENT_PAGE_SIZE = 100
+
+internal fun ragflowDocumentPrefix(
+    feedUrl: String,
+    articleLink: String,
+    title: String,
+    publishedAtMillis: Long,
+): String {
+    val stableSource = if (articleLink.isNotBlank()) {
+        "link:${articleLink.trim()}"
+    } else {
+        "${feedUrl.trim()}\n${title.trim()}\n$publishedAtMillis"
+    }
+    return "$RAGFLOW_DOCUMENT_PREFIX${sha256(stableSource).take(32)}-"
+}
+
+internal fun sha256(value: String): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
 
 internal fun isRagflowCompletionEvent(event: String): Boolean =
     event.equals("true", ignoreCase = true) || event == "[DONE]"
@@ -388,3 +503,14 @@ internal fun hasRagflowAnswer(event: String): Boolean =
             ?.optString("answer")
             ?.isNotBlank() == true
     }.getOrDefault(false)
+
+internal fun isMissingRagflowDocument(error: Throwable): Boolean {
+    val message = error.message.orEmpty().lowercase()
+    return "http 404" in message ||
+        "not found" in message ||
+        "does not exist" in message ||
+        "doesn't exist" in message ||
+        "don't own the document" in message ||
+        "doesn't own the document" in message ||
+        "不存在" in message
+}

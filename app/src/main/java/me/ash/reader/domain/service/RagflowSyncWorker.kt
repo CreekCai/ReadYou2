@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import me.ash.reader.domain.model.article.RagflowDocument
 import me.ash.reader.domain.repository.ArticleDao
 import me.ash.reader.domain.repository.RagflowDocumentDao
 import java.util.concurrent.TimeUnit
@@ -54,17 +55,36 @@ class RagflowBackfillWorker @AssistedInject constructor(
     private val suggestionService: KnowledgeSuggestionService,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result = runCatching {
+        val force = inputData.getBoolean(KEY_FORCE, false)
         val starred = articleDao.queryAllStarred()
         val accountIds = starred.map { it.article.accountId }.distinct()
         if (!repository.isConfigured()) {
             accountIds.forEach { suggestionService.refreshIfNeeded(it) }
             return@runCatching
         }
+        val localMappings = mappingDao.all().associateBy { it.articleId }
+        val needsRemoteReconciliation = force || starred.any {
+            val mapping = localMappings[it.article.id]
+            mapping == null ||
+                mapping.status != RagflowDocument.STATUS_SYNCED ||
+                !mapping.contentHash.startsWith(RAGFLOW_IDENTITY_VERSION)
+        }
+        val remoteDocuments = if (needsRemoteReconciliation) {
+            repository.listManagedDocuments()
+        } else {
+            null
+        }
         accountIds.forEach { accountId ->
             suggestionService.markSyncing(accountId)
             val accountArticles = starred.filter { it.article.accountId == accountId }
             val failures = accountArticles.mapNotNull { article ->
-                runCatching { repository.sync(article) }.exceptionOrNull()
+                runCatching {
+                    repository.sync(
+                        article = article,
+                        force = force,
+                        remoteDocuments = remoteDocuments,
+                    )
+                }.exceptionOrNull()
             }
             if (failures.isNotEmpty() && mappingDao.syncedKnowledgeSnapshot(accountId).isEmpty()) {
                 suggestionService.markSyncFailure(accountId, failures.first())
@@ -76,9 +96,14 @@ class RagflowBackfillWorker @AssistedInject constructor(
         mappingDao.all().filter { it.articleId !in starredIds }.forEach { repository.delete(it.articleId) }
     }.fold({ Result.success() }, { if (runAttemptCount < 5) Result.retry() else Result.failure() })
     companion object {
-        fun enqueue(manager: WorkManager) = manager.enqueueUniqueWork(
+        private const val KEY_FORCE = "force"
+
+        fun enqueue(manager: WorkManager, force: Boolean = false) = manager.enqueueUniqueWork(
             "RAGFLOW_BACKFILL", ExistingWorkPolicy.REPLACE,
-            OneTimeWorkRequestBuilder<RagflowBackfillWorker>().setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build(),
+            OneTimeWorkRequestBuilder<RagflowBackfillWorker>()
+                .setInputData(workDataOf(KEY_FORCE to force))
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .build(),
         )
         fun schedule(manager: WorkManager) = manager.enqueueUniquePeriodicWork(
             "RAGFLOW_RECONCILE",
