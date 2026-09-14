@@ -15,7 +15,8 @@ val LocalGeminiTranslationPrompt = compositionLocalOf { GeminiTranslationPromptP
 
 object GeminiTranslationPromptPreference {
 
-    const val default = "Translate the following text to the system language, please just provide the translated text:"
+    private const val legacyDefault = "Translate the following text to the system language, please just provide the translated text:"
+    const val default = "请将以下内容翻译成简体中文，只输出译文，不要添加解释："
 
     fun put(context: Context, scope: CoroutineScope, value: String) {
         scope.launch(Dispatchers.IO) {
@@ -23,6 +24,8 @@ object GeminiTranslationPromptPreference {
         }
     }
 
-    fun fromPreferences(preferences: Preferences) =
-        preferences[DataStoreKey.keys[geminiTranslationPrompt]?.key as Preferences.Key<String>] ?: default
+    fun fromPreferences(preferences: Preferences): String {
+        val saved = preferences[DataStoreKey.keys[geminiTranslationPrompt]?.key as Preferences.Key<String>]
+        return if (saved.isNullOrBlank() || saved == legacyDefault) default else saved
+    }
 }

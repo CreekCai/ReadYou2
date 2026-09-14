@@ -70,6 +70,7 @@ import me.ash.reader.infrastructure.preference.GeminiApiKeyPreference
 import me.ash.reader.infrastructure.preference.GeminiModelPreference
 import me.ash.reader.infrastructure.preference.GeminiPromptPreference
 import me.ash.reader.infrastructure.preference.GeminiTranslationModelPreference
+import me.ash.reader.infrastructure.preference.GeminiTranslationPromptPreference
 import me.ash.reader.infrastructure.preference.LocalSettings
 import me.ash.reader.infrastructure.preference.OpenAiBaseUrlPreference
 import me.ash.reader.infrastructure.preference.RagflowApiKeyPreference
@@ -294,6 +295,7 @@ fun GeminiSettingsPage(
     var geminiModel by remember { mutableStateOf(settings.geminiModel) }
     var geminiTranslationModel by remember { mutableStateOf(settings.geminiTranslationModel) }
     var summaryPrompt by remember { mutableStateOf(settings.geminiPrompt) }
+    var translationPrompt by remember { mutableStateOf(settings.geminiTranslationPrompt) }
     var ragflowBaseUrl by remember { mutableStateOf(settings.ragflowBaseUrl) }
     var ragflowApiKey by remember { mutableStateOf(settings.ragflowApiKey) }
     var ragflowDatasetId by remember { mutableStateOf(settings.ragflowDatasetId) }
@@ -354,6 +356,7 @@ fun GeminiSettingsPage(
         GeminiModelPreference.put(context, scope, geminiModel.trim())
         GeminiTranslationModelPreference.put(context, scope, geminiTranslationModel.trim())
         GeminiPromptPreference.put(context, scope, summaryPrompt)
+        GeminiTranslationPromptPreference.put(context, scope, translationPrompt)
         RagflowBaseUrlPreference.put(context, scope, ragflowBaseUrl.trimEnd('/').trim())
         RagflowApiKeyPreference.put(context, scope, ragflowApiKey.trim())
         RagflowDatasetIdPreference.put(context, scope, ragflowDatasetId.trim())
@@ -436,6 +439,20 @@ fun GeminiSettingsPage(
                         onEdited(it)
                     },
                     label = "摘要提示词",
+                    singleLine = false,
+                    minLines = 3,
+                    maxLines = 6,
+                )
+            }
+            item {
+                ConfigField(
+                    value = translationPrompt,
+                    onValueChange = {
+                        translationPrompt = it
+                        onEdited(it)
+                    },
+                    label = "翻译提示词",
+                    supporting = "默认翻译成简体中文；可修改目标语言或翻译要求",
                     singleLine = false,
                     minLines = 3,
                     maxLines = 6,
