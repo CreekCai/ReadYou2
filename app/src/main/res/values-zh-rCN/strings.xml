@@ -350,7 +350,7 @@
     <string name="parse_full_content_desc">从网页获取完整内容</string>
     <string name="enable">启用</string>
     <string name="disable">停用</string>
-    <string name="gemini_ai">AI配置</string>
+    <string name="gemini_ai">大模型</string>
     <string name="gemini_ai_desc">配置 Gemini 或 OpenAI 模型和 API 密钥</string>
     <string name="ai_settings_page_desc">配置 AI 摘要、翻译和洞察功能。</string>
     <string name="ai_provider">服务商</string>

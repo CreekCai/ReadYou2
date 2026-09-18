@@ -32,7 +32,8 @@ fun LazyListScope.Reader(
     link: String,
     content: String,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
-    onLinkClick: (String) -> Unit
+    onLinkClick: (String) -> Unit,
+    explanation: me.ash.reader.ui.page.home.reading.NativeExplanationState? = null,
 ) {
 //    Log.i("RLog", "Reader: ")
     htmlFormattedText(
@@ -41,6 +42,7 @@ fun LazyListScope.Reader(
         baseUrl = link,
         onImageClick = onImageClick,
         imagePlaceholder = R.drawable.ic_launcher_foreground,
-        onLinkClick = onLinkClick
+        onLinkClick = onLinkClick,
+        explanation = explanation,
     )
 }

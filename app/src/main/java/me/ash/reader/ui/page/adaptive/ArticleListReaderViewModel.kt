@@ -154,7 +154,8 @@ constructor(
     }
 
     fun translateArticle() {
-        val currentText = readerStateStateFlow.value.content.text
+        val snapshot = readerStateStateFlow.value
+        val currentText = snapshot.content.text
         if (currentText.isNullOrBlank()) {
             _readerState.update { it.copy(content = ReaderState.Error("No content to translate")) }
             return
@@ -164,9 +165,11 @@ constructor(
             _readerState.update { it.copy(content = ReaderState.Loading) }
             try {
                 val translation = geminiService.translate(currentText)
-                _readerState.update { it.copy(content = ReaderState.FullContent(translation)) }
+                _readerState.update { if (it.articleId == snapshot.articleId) it.copy(content = ReaderState.FullContent(translation,
+                    (snapshot.content as? ReaderState.FullContent)?.originalContent ?: currentText)) else it }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e
             } catch (e: Exception) {
-                _readerState.update { it.copy(content = ReaderState.Error(e.message ?: "Unknown error")) }
+                _readerState.update { if (it.articleId == snapshot.articleId) it.copy(content = snapshot.content) else it }
             }
         }
     }
@@ -701,7 +704,7 @@ data class ReaderState(
             }
     }
 
-    data class FullContent(val content: String) : ContentState
+    data class FullContent(val content: String, val originalContent: String? = null) : ContentState
 
     data class Description(val content: String) : ContentState
 

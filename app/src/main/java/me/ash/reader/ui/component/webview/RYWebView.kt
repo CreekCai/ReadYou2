@@ -1,6 +1,11 @@
 package me.ash.reader.ui.component.webview
 
 import android.util.Log
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import me.ash.reader.domain.service.ExplanationRequest
+import me.ash.reader.domain.service.ExplanationAnswer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,7 +43,9 @@ import me.ash.reader.ui.theme.palette.alwaysLight
 fun RYWebView(
     modifier: Modifier = Modifier,
     content: String,
+    documentKey: String = "",
     refererDomain: String? = null,
+    onExplain: (suspend (ExplanationRequest) -> ExplanationAnswer)? = null,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
@@ -88,6 +95,15 @@ fun RYWebView(
             )
         }
 
+    val scope = rememberCoroutineScope()
+    val currentExplain = rememberUpdatedState(onExplain)
+    val bridge = remember(webView) { ExplanationBridge(webView, scope) { currentExplain.value!!.invoke(it) } }
+    DisposableEffect(webView) {
+        webView.addJavascriptInterface(bridge, "ReadYouExplain")
+        onDispose { bridge.dispose(); webView.removeJavascriptInterface("ReadYouExplain"); webView.destroy() }
+    }
+    val noteScript = remember { context.assets.open("reading-notes.js").bufferedReader().use { it.readText() } }
+    val cleanContent = remember(content) { safeReadingHtml(content) }
     val fontPath =
         if (readingFonts is ReadingFontsPreference.External)
             ExternalFonts.FontType.ReadingFont.toPath(context)
@@ -104,11 +120,10 @@ fun RYWebView(
             it.apply {
                 Log.i("RLog", "maxWidth: ${maxWidth}")
                 Log.i("RLog", "readingFont: ${context.filesDir.absolutePath}")
-                Log.i("RLog", "CustomWebView: ${content}")
+
                 settings.defaultFontSize = fontSize
-                loadDataWithBaseURL(
-                    null,
-                    WebViewHtml.HTML.format(
+                explanationsEnabled = onExplain != null
+                val html = WebViewHtml.HTML.format(
                         WebViewStyle.get(
                             fontSize = fontSize,
                             fontPath = fontPath,
@@ -130,14 +145,15 @@ fun RYWebView(
                             selectionTextColor = selectionTextColor,
                             selectionBgColor = selectionBgColor,
                         ),
-                        url,
-                        content,
-                        WebViewScript.get(boldCharacters.value),
-                    ),
-                    "text/HTML",
-                    "UTF-8",
-                    null,
-                )
+                        refererDomain?.let { domain -> "https://$domain/" }.orEmpty(),
+                        cleanContent,
+                        WebViewScript.get(boldCharacters.value) + if (onExplain != null) noteScript else "",
+                    )
+                if (tag != (documentKey to html)) {
+                    tag = documentKey to html
+                    bridge.newDocument()
+                    loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+                }
             }
         },
     )

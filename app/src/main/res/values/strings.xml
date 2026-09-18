@@ -411,7 +411,7 @@
     <string name="parse_full_content_desc">Fetch full articles from webpages</string>
     <string name="enable">Enable</string>
     <string name="disable">Disable</string>
-    <string name="gemini_ai">AI</string>
+    <string name="gemini_ai">AI Models</string>
     <string name="gemini_ai_desc">Configure Gemini or OpenAI model and API Key</string>
     <string name="ai_settings_page_desc">Configure AI for summarization, translation and insight features.</string>
     <string name="ai_provider">Provider</string>

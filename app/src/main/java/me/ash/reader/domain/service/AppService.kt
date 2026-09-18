@@ -5,7 +5,10 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import me.ash.reader.R
 import me.ash.reader.domain.model.general.toVersion
@@ -85,19 +88,19 @@ class AppService @Inject constructor(
         }
     }
 
-    suspend fun downloadFile(url: String): Flow<Download> =
-        withContext(ioDispatcher) {
+    fun downloadFile(url: String): Flow<Download> =
+        flow {
             Log.i("RLog", "downloadFile start: $url")
-            try {
-                return@withContext networkDataSource.downloadFile(url)
+            emitAll(
+                networkDataSource.downloadFile(url)
                     .downloadToFileWithProgress(context.getLatestApk())
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Log.e("RLog", "downloadFile: ${e.message}")
-                withContext(mainDispatcher) {
-                    context.showToast(context.getString(R.string.download_failure))
-                }
+            )
+        }.flowOn(ioDispatcher).catch { error ->
+            error.printStackTrace()
+            Log.e("RLog", "downloadFile: ${error.message}")
+            withContext(mainDispatcher) {
+                context.showToast(context.getString(R.string.download_failure))
             }
-            emptyFlow()
+            emit(Download.Failed)
         }
 }

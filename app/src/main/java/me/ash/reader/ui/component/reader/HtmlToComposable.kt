@@ -64,6 +64,7 @@ fun LazyListScope.htmlFormattedText(
     inputStream: InputStream,
     subheadUpperCase: Boolean = false,
     baseUrl: String,
+    explanation: me.ash.reader.ui.page.home.reading.NativeExplanationState? = null,
     @DrawableRes imagePlaceholder: Int,
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     onLinkClick: (String) -> Unit,
@@ -76,6 +77,7 @@ fun LazyListScope.htmlFormattedText(
             onImageClick = onImageClick,
             onLinkClick = onLinkClick,
             baseUrl = baseUrl,
+            explanation = explanation,
         )
     }
 }
@@ -88,8 +90,11 @@ private fun LazyListScope.formatBody(
     onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     onLinkClick: (String) -> Unit,
     baseUrl: String,
+    explanation: me.ash.reader.ui.page.home.reading.NativeExplanationState? = null,
 ) {
+    var paragraphIndex = 0
     val composer = TextComposer { paragraphBuilder ->
+        val paragraphId = paragraphIndex++
         item {
             val textLinkStyles = textLinkStyles()
             val paragraph =
@@ -112,12 +117,12 @@ private fun LazyListScope.formatBody(
             val textStyle = bodyStyle().applyTextDirection(requiresBidi = requiresBidi)
             val contentWidth = LocalTextContentWidth.current
 
-            Text(
-                text = paragraph,
-                style = textStyle,
-                modifier =
-                    Modifier.width(contentWidth).padding(horizontal = textHorizontalPadding().dp),
-            )
+            val paragraphModifier = Modifier.width(contentWidth).padding(horizontal = textHorizontalPadding().dp)
+            if (explanation != null) {
+                me.ash.reader.ui.page.home.reading.ExplainableParagraph(paragraph, textStyle, paragraphModifier, paragraphId, explanation)
+            } else {
+                Text(text = paragraph, style = textStyle, modifier = paragraphModifier)
+            }
         }
     }
 

@@ -29,7 +29,7 @@ import java.util.*
         ArchivedArticle::class,
         ArticleAiContent::class,
     ],
-    version = 8,
+    version = 13,
     autoMigrations = [
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 5, to = 7),
@@ -91,6 +91,7 @@ val allMigrations = arrayOf(
     MIGRATION_3_4,
     MIGRATION_4_5,
     MIGRATION_7_8,
+    *Array(5) { RetireKnowledgeMigration(8 + it) },
 )
 
 @Suppress("ClassName")
@@ -199,4 +200,9 @@ object MIGRATION_7_8 : Migration(7, 8) {
             """.trimIndent()
         )
     }
+}
+
+/** Retired tables are deliberately left intact for recovery; Room ignores extra tables. */
+class RetireKnowledgeMigration(from: Int) : Migration(from, 13) {
+    override fun migrate(database: SupportSQLiteDatabase) = Unit
 }

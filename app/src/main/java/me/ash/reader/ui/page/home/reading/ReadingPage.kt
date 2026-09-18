@@ -296,6 +296,7 @@ fun ReadingPage(
                                                 ),
                                             contentPadding = paddings,
                                             content = content.text ?: "",
+                                            originalContent = (content as? ReaderState.FullContent)?.originalContent.orEmpty(),
                                             feedName = feedName,
                                             title = title.toString(),
                                             author = author,

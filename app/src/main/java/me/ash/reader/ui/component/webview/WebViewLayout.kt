@@ -16,7 +16,7 @@ object WebViewLayout {
         webViewClient: WebViewClient,
         onImageClick: ((imgUrl: String, altText: String) -> Unit)? = null,
     ) =
-        WebView(context).apply {
+        SelectionWebView(context).apply {
             this.webViewClient = webViewClient
             scrollBarSize = 0
             isHorizontalScrollBarEnabled = false

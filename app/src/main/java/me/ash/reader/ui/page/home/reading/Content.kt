@@ -23,6 +23,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -46,6 +50,7 @@ import me.ash.reader.ui.page.adaptive.SummarizationState
 fun Content(
     modifier: Modifier = Modifier,
     content: String,
+    originalContent: String = "",
     feedName: String,
     title: String,
     author: String? = null,
@@ -59,6 +64,10 @@ fun Content(
     summarizationState: SummarizationState = SummarizationState.Idle,
     isSummaryVisible: Boolean = true,
 ) {
+    val explanation: ExplanationViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
+    val noteScope = rememberCoroutineScope()
+    val nativeNotes = remember(content, title, link) { NativeExplanationState(noteScope) { explanation.answer(title, link.orEmpty(), content, it.copy(originalContent = originalContent)) } }
+    DisposableEffect(nativeNotes) { onDispose { nativeNotes.stop() } }
     val context = LocalContext.current
     val subheadUpperCase = LocalReadingSubheadUpperCase.current
     val renderer = LocalReadingRenderer.current
@@ -122,7 +131,9 @@ fun Content(
                             RYWebView(
                                 modifier = Modifier.fillMaxSize(),
                                 content = content,
+                                documentKey = link.orEmpty() + title,
                                 refererDomain = link.extractDomain(),
+                                onExplain = { explanation.answer(title, link.orEmpty(), content, it.copy(originalContent = originalContent)) },
                                 onImageClick = onImageClick,
                             )
                             Spacer(modifier = Modifier.height(128.dp))
@@ -137,7 +148,7 @@ fun Content(
             ReadingRendererPreference.NativeComponent -> {
                 SelectionContainer {
                     LazyColumn(
-                        modifier = modifier.fillMaxSize().drawVerticalScrollIndicator(listState),
+                        modifier = modifier.fillMaxSize().imePadding().drawVerticalScrollIndicator(listState),
                         state = listState,
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -207,6 +218,7 @@ fun Content(
                             subheadUpperCase = subheadUpperCase.value,
                             link = link ?: "",
                             content = content,
+                            explanation = nativeNotes,
                             onImageClick = onImageClick,
                             onLinkClick = { uriHandler.openUri(it) },
                         )

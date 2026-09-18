@@ -61,8 +61,16 @@ class AndroidApp : Application(), Configuration.Provider {
      * 3. Synchronize once
      * 4. Check for new version
      */
+    @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
     override fun onCreate() {
         super.onCreate()
+        // Keep Android ActionMode selection customization available in both reading renderers.
+        androidx.compose.foundation.ComposeFoundationFlags.isNewContextMenuEnabled = false
+        // WorkManager automatically tags work with its worker class name.
+        val manager = androidx.work.WorkManager.getInstance(this)
+        listOf("RagflowSyncWorker", "RagflowBackfillWorker", "KnowledgeSuggestionWorker", "OfflineArticleWorker").forEach {
+            manager.cancelAllWorkByTag("me.ash.reader.domain.service.$it")
+        }
         CrashHandler(this)
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())

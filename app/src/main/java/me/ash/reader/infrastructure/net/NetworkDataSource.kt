@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -13,6 +14,7 @@ import retrofit2.http.GET
 import retrofit2.http.Streaming
 import retrofit2.http.Url
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 interface NetworkDataSource {
 
@@ -31,6 +33,15 @@ interface NetworkDataSource {
             return instance ?: synchronized(this) {
                 instance ?: Retrofit.Builder()
                     .baseUrl("https://api.github.com/")
+                    .client(
+                        OkHttpClient.Builder()
+                            .connectTimeout(30, TimeUnit.SECONDS)
+                            // APK downloads can pause for longer than OkHttp's default 10 seconds,
+                            // especially when GitHub redirects to a slow release-asset endpoint.
+                            .readTimeout(5, TimeUnit.MINUTES)
+                            .retryOnConnectionFailure(true)
+                            .build()
+                    )
                     .addConverterFactory(GsonConverterFactory.create())
                     .build().create(NetworkDataSource::class.java).also {
                         instance = it
@@ -50,7 +61,7 @@ fun ResponseBody.downloadToFileWithProgress(saveFile: File): Flow<Download> =
         try {
             byteStream().use { inputStream ->
                 saveFile.outputStream().use { outputStream ->
-                    val totalBytes = contentLength()
+                    val totalBytes = contentLength().takeIf { it > 0L }
                     val data = ByteArray(8_192)
                     var progressBytes = 0L
 
@@ -61,14 +72,22 @@ fun ResponseBody.downloadToFileWithProgress(saveFile: File): Flow<Download> =
                             break
                         }
 
-                        outputStream.channel
                         outputStream.write(data, 0, bytes)
                         progressBytes += bytes
 
-                        emit(Download.Progress(percent = ((progressBytes * 100) / totalBytes).toInt()))
+                        totalBytes?.let {
+                            emit(
+                                Download.Progress(
+                                    percent = ((progressBytes * 100) / it).toInt().coerceIn(0, 100)
+                                )
+                            )
+                        }
                     }
 
                     when {
+                        totalBytes == null ->
+                            deleteFile = false
+
                         progressBytes < totalBytes ->
                             throw Exception("missing bytes")
 
@@ -117,4 +136,5 @@ sealed class Download {
     object NotYet : Download()
     data class Progress(val percent: Int) : Download()
     data class Finished(val file: File) : Download()
+    object Failed : Download()
 }
